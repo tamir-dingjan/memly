@@ -1,7 +1,7 @@
 memly
 ==============================
 [//]: # (Badges)
-[![Travis Build Status](https://travis-ci.com/REPLACE_WITH_OWNER_ACCOUNT/memly.svg?branch=master)](https://travis-ci.com/REPLACE_WITH_OWNER_ACCOUNT/memly)
+[![Travis Build Status](https://travis-ci.com/github/tamir-dingjan/memly.svg?branch=master)](https://travis-ci.com/github/tamir-dingjan/memly)
 [![codecov](https://codecov.io/gh/REPLACE_WITH_OWNER_ACCOUNT/memly/branch/master/graph/badge.svg)](https://codecov.io/gh/REPLACE_WITH_OWNER_ACCOUNT/memly/branch/master)
 
 
