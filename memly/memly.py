@@ -2,7 +2,8 @@
 memly.py
 Analysis tool for lipid bilayer simulations.
 
-Handles the primary functions
+The memly package contains tools for analysing lipid bilayer simulations, and
+is written to make it easy to add more analysis options in the future.
 """
 
 
