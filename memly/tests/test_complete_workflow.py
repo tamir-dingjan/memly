@@ -5,13 +5,16 @@ Created on Wed Jun 10 15:46:05 2020
 
 @author: tamir
 """
-
+import os
 
 import memly
 
-traj = "/home/tamir/Documents/memly_project/memly/memly/tests/data/1.xtc"
-top = "/home/tamir/Documents/memly_project/memly/memly/tests/data/1.pdb"
+# Setup access to datafiles
+THIS_DIR = os.path.dirname(os.path.abspath(__file__))
+traj = os.path.join(THIS_DIR, "data/1.xtc")
+top = os.path.join(THIS_DIR, "data/1.pdb")
+
 
 x = memly.Analysis(traj, top)
 
-x.analyse()
+x.split_leaflets()
