@@ -30,9 +30,15 @@ class Analysis():
         self.traj_file = traj
         self.top_file = top
         self.sim = loader.load(self.traj_file, self.top_file)
+        
+        # Check if simulation loaded
+        if self.sim is None:
+            print("ERROR: No simulation data loaded.")
+            raise FileNotFoundError
        
         # TODO Add leaflet splitting
         self.leaflet = "All"
+        self.split_leaflets()
         
         self.results = []
         
@@ -52,3 +58,6 @@ class Analysis():
         # Collect all the results into one dataframe
         self.results = pd.concat(self.results)
         
+        
+    def split_leaflets(self):
+        print("Leaflet splitter")

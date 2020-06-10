@@ -29,10 +29,11 @@ def load(traj, top):
     """
     # Check if the specified files exist
     if not os.path.exists(traj):
-        print("ERROR: Couldn't find file ("+str(traj)+")\n")
-        return None
+        print("ERROR: Couldn't find file ("+str(traj)+").")
     elif not os.path.exists(top):
-        print("ERROR: Couldn't find file ("+str(top)+")\n")
-        return None
+        print("ERROR: Couldn't find file ("+str(top)+").")
     else:
-        return md.load(traj, top=top)
+        try:
+            return md.load(traj, top=top)
+        except FileNotFoundError:
+            print("ERROR: Couldn't load from disk.")
