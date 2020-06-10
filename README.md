@@ -1,8 +1,10 @@
 memly
 ==============================
 [//]: # (Badges)
+[![Build Status](https://travis-ci.com/tamir-dingjan/memly.svg?branch=master)](https://travis-ci.com/tamir-dingjan/memly)
 [![Travis Build Status](https://travis-ci.com/github/tamir-dingjan/memly.svg?branch=master)](https://travis-ci.com/github/tamir-dingjan/memly)
 [![codecov](https://codecov.io/gh/REPLACE_WITH_OWNER_ACCOUNT/memly/branch/master/graph/badge.svg)](https://codecov.io/gh/REPLACE_WITH_OWNER_ACCOUNT/memly/branch/master)
+[![Documentation Status](https://readthedocs.org/projects/memly/badge/?version=latest)](https://memly.readthedocs.io/en/latest/?badge=latest)
 
 
 Analysis tool for lipid bilayer simulations.
