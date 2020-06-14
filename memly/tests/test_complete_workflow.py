@@ -15,6 +15,7 @@ traj = os.path.join(THIS_DIR, "data/1.xtc")
 top = os.path.join(THIS_DIR, "data/1.pdb")
 
 
-x = memly.Analysis(traj, top)
+x = memly.Analysis(traj, top, load=True)
 
 x.split_leaflets()
+
