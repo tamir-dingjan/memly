@@ -17,5 +17,11 @@ top = os.path.join(THIS_DIR, "data/1.pdb")
 
 x = memly.Analysis(traj, top, load=True)
 
-x.split_leaflets()
+lipid_vectors = memly.analysis.get_lipid_vectors(x.sim)
+
+assert list(lipid_vectors.keys()) == [i for i in range(0,336)]
+
+
+
+#x.split_leaflets()
 
