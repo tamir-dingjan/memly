@@ -105,7 +105,7 @@ def compare_lipid_vectors(a, b, origin_cutoff, collinear_cutoff):
     # Check if vectors are roughly co-linear
     collinear = []
     for a_magnitude, b_magnitude in zip(a[1], b[1]):
-        collinear.append(np.degrees(angle_between(a_magnitude, b_magnitude)))
+        collinear.append(angle_between(a_magnitude, b_magnitude))
     collinear = np.asarray(collinear)
 
     # Check that both comparisons completed on all data
@@ -128,7 +128,7 @@ def angle_between(v1, v2):
     """Returns the angle in radians between vectors v1 and v2."""
     v1_u = unit_vector(v1)
     v2_u = unit_vector(v2)
-    return np.arccos(np.clip(np.dot(v1_u, v2_u), -1.0, 1.0))
+    return np.degrees(np.arccos(np.clip(np.dot(v1_u, v2_u), -1.0, 1.0)))
 
 
 

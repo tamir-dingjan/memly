@@ -5,6 +5,7 @@ Contains the method for counting how many lipids are present in the simulation.
 
 from memly.metrics import Metric
 
+
 class CountLipids(Metric):
     def __init__(self, sim, leaflet, title="Number of lipids", units="#"):
         """
@@ -30,9 +31,4 @@ class CountLipids(Metric):
         
         Metric.__init__(self, sim, title, units, leaflet)
         self.add_results(lipid="All", value=self.sim.topology.n_residues)
-      
 
-        
-        
-        
-        
