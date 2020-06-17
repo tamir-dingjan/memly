@@ -12,6 +12,6 @@ i = [1, 1, 0]
 j = [0, 1, 0]
 k = [1, 0, 0]
 
-assert (memly.analysis.unit_vector(k) == [1, 0, 0]).all()
+assert (memly.membrane.unit_vector(k) == [1, 0, 0]).all()
 
-assert (round(memly.analysis.angle_between(i, k), 1) == round(45.0, 1))
+assert (round(memly.membrane.angle_between(i, k), 1) == round(45.0, 1))

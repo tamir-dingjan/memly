@@ -4,6 +4,7 @@ Extensible analysis tool for lipid bilayer simulations.
 
 # Add imports here
 from memly.analysis import Analysis
+from memly.membrane import Membrane
 
 
 # Handle versioneer
