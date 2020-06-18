@@ -46,6 +46,41 @@ class Membrane:
                 print("ERROR: No simulation data loaded.")
                 raise FileNotFoundError
 
+        self.raw_leaflets = [detect_aggregates(frame) for frame in self.sim]
+        self.categorise_leaflets(min_leaflet_size=10)
+
+    def categorise_leaflets(self, min_leaflet_size=10):
+        """
+        Sort the detected leaflets to apply the labels used in metric analysis.
+
+        Process:
+            1. Leaflets with fewer than min_leaflet_size lipids are labelled "aggregate"
+            2. Find the average lipid vector orientation of large leaflets
+            3. Define "upper" as vectors pointing towards negative Z axis
+
+        :return:
+        """
+        self.leaflets = []
+
+        for frame, leaflets in zip(self.sim, self.raw_leaflets):
+            categorised = defaultdict(list)
+
+            # Remaining leaflets are large enough to be considered a membrane
+            for leaflet_id in leaflets.keys():
+                # Assign small aggregates
+                if len(leaflets[leaflet_id]) < min_leaflet_size:
+                    categorised["aggregate"] += leaflets[leaflet_id]
+                    continue
+                # Get lipid vectors for all lipids in the leaflet
+                leaflet_vectors = np.asarray([get_lipid_vector(frame,resid) for resid in leaflets[leaflet_id]])
+                avg_leaflet_vector = np.mean(leaflet_vectors, axis=1)
+                # Get orientation of leaflet w.r.t Z axis
+                if avg_leaflet_vector[2] < 0:
+                    categorised["upper"] += leaflets[leaflet_id]
+                else:
+                    categorised["lower"] += leaflets[leaflet_id]
+            self.leaflets.append(categorised)
+
 
 def detect_aggregates(frame, neighbor_cutoff=10, merge_cutoff=15):
     """
@@ -68,7 +103,7 @@ def detect_aggregates(frame, neighbor_cutoff=10, merge_cutoff=15):
             continue
         else:
             detected_lipids.append(residue.index)
-    logging.info("Number of lipids detected: %s" % len(detected_lipids))
+    logging.debug("Number of lipids detected: %s" % len(detected_lipids))
 
     # Assign each lipid residue to an aggregate
     for lipid in detected_lipids:
@@ -104,7 +139,7 @@ def detect_aggregates(frame, neighbor_cutoff=10, merge_cutoff=15):
             # Mark neighbor as processed
             processed[nbor] = True
 
-    logging.info("Collected %s aggregates" % len(aggregates.keys()))
+    logging.debug("Collected %s aggregates" % len(aggregates.keys()))
 
     # Merge aggregates
     # Where aggregate lipids have head groups close to the head groups of other lipids, those
@@ -159,7 +194,7 @@ def detect_aggregates(frame, neighbor_cutoff=10, merge_cutoff=15):
             merged[agg_to_join] = True
             logging.debug("Merged aggregates %s and %s" % (agg_id, agg_to_join))
     logging.debug("Found %s leaflets." % len(leaflets.keys()))
-    return aggregates, leaflets
+    return leaflets
 
 
 def export_labelled_snapshot(frame, labels, output_path):
@@ -188,7 +223,6 @@ def export_labelled_snapshot(frame, labels, output_path):
             # Apply conversion on ATOM lines
             if line[:4] == 'ATOM':
                 pre_chain = line[:21]
-                old_chain = line[21]
                 post_chain = line[22:]
                 # Decrement the resid to move to 0-indexing
                 resid = int(line[22:26].strip()) - 1
