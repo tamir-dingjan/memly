@@ -19,18 +19,6 @@ def test_complete_workflow():
 
     x = memly.Analysis(traj, top, load=True)
 
-    lipid_vectors = memly.analysis.get_lipid_vectors(x.sim)
-    assert list(lipid_vectors.keys()) == [i for i in range(0, 336)]
-
-    origin_cutoff = 50
-    collinear_cutoff = 90
-
-    pairmask = memly.analysis.compare_lipid_vectors(lipid_vectors[0], lipid_vectors[1], origin_cutoff, collinear_cutoff)
-    #assert np.count_nonzero(pairmask) == 13
-
-    allmask = memly.analysis.cluster_lipid_vectors(lipid_vectors, origin_cutoff, collinear_cutoff)
-
-    return allmask
     # x.split_leaflets()
 
 result = test_complete_workflow()
