@@ -39,6 +39,8 @@ class Membrane:
         self.load = load
         self.traj_file = traj
         self.top_file = top
+        self.leaflets = []
+
         if self.load:
             self.sim = loader.load(self.traj_file, self.top_file)
             # Check if simulation loaded
@@ -46,7 +48,7 @@ class Membrane:
                 print("ERROR: No simulation data loaded.")
                 raise FileNotFoundError
 
-        self.raw_leaflets = [detect_aggregates(frame) for frame in self.sim]
+        self.raw_leaflets = [detect_aggregates(frame, neighbor_cutoff=3, merge_cutoff=1) for frame in self.sim]
         self.categorise_leaflets(min_leaflet_size=10)
 
     def categorise_leaflets(self, min_leaflet_size=10):
@@ -60,7 +62,6 @@ class Membrane:
 
         :return:
         """
-        self.leaflets = []
 
         for frame, leaflets in zip(self.sim, self.raw_leaflets):
             categorised = defaultdict(list)
@@ -73,7 +74,9 @@ class Membrane:
                     continue
                 # Get lipid vectors for all lipids in the leaflet
                 leaflet_vectors = np.asarray([get_lipid_vector(frame,resid) for resid in leaflets[leaflet_id]])
-                avg_leaflet_vector = np.mean(leaflet_vectors, axis=1)
+                logging.debug("Fetched %s lipid vectors from leaflet %s." % (len(leaflet_vectors), leaflet_id))
+                avg_leaflet_vector = np.mean(leaflet_vectors, axis=0)
+                logging.debug("Average leaflet vector: %s" % (avg_leaflet_vector))
                 # Get orientation of leaflet w.r.t Z axis
                 if avg_leaflet_vector[2] < 0:
                     categorised["upper"] += leaflets[leaflet_id]
@@ -82,7 +85,7 @@ class Membrane:
             self.leaflets.append(categorised)
 
 
-def detect_aggregates(frame, neighbor_cutoff=10, merge_cutoff=15):
+def detect_aggregates(frame, neighbor_cutoff=3, merge_cutoff=1):
     """
     Detect aggregates in a single simulation frame.
     :param frame:
