@@ -6,13 +6,14 @@ This object contains the simulation data and methods for detecting aggregates, a
 
 from collections import defaultdict
 import logging
+import os
+from string import ascii_uppercase
 
 import numpy as np
 import mdtraj as md
 
 from memly import loader
 from memly import particle_naming
-
 
 logging.basicConfig(level=logging.INFO)
 
@@ -81,8 +82,8 @@ def detect_aggregates(frame, neighbor_cutoff=10, merge_cutoff=15):
         processed[lipid] = True
         # Get the lipid neighbourhood
         query = frame.topology.select("resid " + str(lipid))
-        excluded_names = " and not resname ".join(particle_naming.water_names) +\
-                         " and not resname " +\
+        excluded_names = " and not resname ".join(particle_naming.water_names) + \
+                         " and not resname " + \
                          " and not resname ".join(particle_naming.ion_names)
         haystack = frame.topology.select("not resname " + excluded_names)
         nhood_particles = md.compute_neighbors(traj=frame,
@@ -117,7 +118,7 @@ def detect_aggregates(frame, neighbor_cutoff=10, merge_cutoff=15):
             continue
         leaflet_id += 1
         leaflets[leaflet_id] += aggregates[agg_id]
-        logging.info("New leaflet: %s (%s lipids)" % (leaflet_id, len(leaflets[leaflet_id])))
+        logging.debug("New leaflet: %s (%s lipids)" % (leaflet_id, len(leaflets[leaflet_id])))
         merged[agg_id] = True
         for agg_to_join in aggregates.keys():
             # Proceed if not already merged
@@ -128,11 +129,13 @@ def detect_aggregates(frame, neighbor_cutoff=10, merge_cutoff=15):
             # so evaluate this using compute_neighbors with the decision threshold as the cutoff.
             query_string = " or resid ".join(str(x) for x in aggregates[agg_id])
             all_particles_query = frame.topology.select("resid " + query_string)
-            hg_query = [particle for particle in all_particles_query if frame.topology.atom(particle).name in particle_naming.headgroup_names]
+            hg_query = [particle for particle in all_particles_query if
+                        frame.topology.atom(particle).name in particle_naming.headgroup_names]
 
             haystack_string = " or resid ".join(str(x) for x in aggregates[agg_to_join])
             all_particles_haystack = frame.topology.select("resid " + haystack_string)
-            hg_haystack = [particle for particle in all_particles_haystack if frame.topology.atom(particle).name in particle_naming.headgroup_names]
+            hg_haystack = [particle for particle in all_particles_haystack if
+                           frame.topology.atom(particle).name in particle_naming.headgroup_names]
 
             logging.debug("Searching for mergeables: leaflet %s (%s lipids), haystack agg %s (%s lipids)" %
                           (leaflet_id, len(leaflets[leaflet_id]), agg_to_join, len(aggregates[agg_to_join])))
@@ -154,9 +157,48 @@ def detect_aggregates(frame, neighbor_cutoff=10, merge_cutoff=15):
                 continue
             leaflets[leaflet_id] += aggregates[agg_to_join]
             merged[agg_to_join] = True
-            logging.info("Merged aggregates %s and %s" % (agg_id, agg_to_join))
-    logging.info("Found %s leaflets." % len(leaflets.keys()))
-    return leaflets
+            logging.debug("Merged aggregates %s and %s" % (agg_id, agg_to_join))
+    logging.debug("Found %s leaflets." % len(leaflets.keys()))
+    return aggregates, leaflets
+
+
+def export_labelled_snapshot(frame, labels, output_path):
+    # MDTraj has no way to set the chain ID for different residues.
+    # So, this routine saves out a snapshot, then edits the chainID field
+    # to labels chains from A-Z for each of the labels.
+    # Labels should be a dictionary of format: {label: [resid, resid, resid...]}
+
+    # Save the snapshot file.
+    frame.save_pdb(output_path)
+
+    # Assign labels to chains
+    chains = {}
+    for label in labels.keys():
+        for resid in labels[label]:
+            chains[int(resid)] = ascii_uppercase[int(label) % len(ascii_uppercase)]
+            logging.debug("Assigned chain %s to resid %s." % (chains[int(resid)], int(resid)))
+    logging.debug("Total number of residues with assigned chains: %s" % (len(chains.keys())))
+    logging.debug("Residue indices with assigned chains: %s" % chains.keys())
+    # Edit the snapshot chain IDs
+    converted_path = os.path.splitext(output_path)[0] + \
+                     "_converted" + \
+                     os.path.splitext(output_path)[1]
+    with open(output_path, 'r') as fin, open(converted_path, 'w') as fout:
+        for line in fin:
+            # Apply conversion on ATOM lines
+            if line[:4] == 'ATOM':
+                pre_chain = line[:21]
+                old_chain = line[21]
+                post_chain = line[22:]
+                # Decrement the resid to move to 0-indexing
+                resid = int(line[22:26].strip()) - 1
+                if resid in chains.keys():
+                    logging.debug("Assigned new chain for resid %s: %s" % (resid, chains[resid]))
+                    fout.write(pre_chain + chains[resid] + post_chain)
+                else:
+                    fout.write(line)
+            else:
+                fout.write(line)
 
 
 def unit_vector(vector):
@@ -180,7 +222,8 @@ def get_lipid_vector(frame, residue_index):
     :return:
     """
     # Get the atom indices of the selected particles
-    hg_indices = [atom.index for atom in frame.topology.residue(residue_index).atoms if atom.name in particle_naming.headgroup_names]
+    hg_indices = [atom.index for atom in frame.topology.residue(residue_index).atoms if
+                  atom.name in particle_naming.headgroup_names]
     all_indices = [atom.index for atom in frame.topology.residue(residue_index).atoms]
 
     if len(hg_indices) == 0:
