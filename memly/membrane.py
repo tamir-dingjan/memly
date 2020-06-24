@@ -24,13 +24,20 @@ class Membrane:
         """
         Instantiate the membrane object with loaded trajectory.
 
+        :param str traj: Full filepath location to MDTraj-readable trajectory file (e.g., trr, xtc, dcd).
+        :param str top: Full filepath location to MDTraj-readable topology file (e.g., pdb, gro).
+        :param bool load: Flag to load trajectory.
+        """
+        """
+        Instantiate the membrane object with loaded trajectory.
+
         Parameters
         ----------
         traj : str
             Full filepath specifying the location of simulation trajectory.
         top : str
             Full filepath specifying the location of topology file.
-
+        load : bool (
         Returns
         -------
         None.
@@ -53,7 +60,6 @@ class Membrane:
 
         # Populate useful one-off lookups
         # Construct set for head group filter membership testing
-        # TODO - why does this only select two particles per lipid?
         self.hg_set = set(self.sim.topology.select("name " + " or name ".join([x for x in particle_naming.headgroup_names])))
 
         # Collect lipid residue indices and lipid particle indices
@@ -77,11 +83,7 @@ class Membrane:
 
         # Pre-calculate all lipid vectors
         # Use numpy stack to allow indexing using different numbers of head group particles in each lipid
-        #self.hg_centroids = np.mean(self.sim.xyz[:, [np.asarray(self.hg_particles_by_res[resid]) for resid in self.detected_lipids], :], axis=2)
         self.hg_centroids = np.stack([get_centroid_of_particles(self.sim, self.hg_particles_by_res[resid]) for resid in self.detected_lipids], axis=1)
-
-
-        #self.com_centroids = np.mean(self.sim.xyz[:, np.asarray([self.lipid_particles_by_res[resid] for resid in self.detected_lipids]), :], axis=2)
 
         # Use numpy stack to allow indexing using different numbers of particles found in each lipid
         self.com_centroids = np.stack([get_centroid_of_particles(self.sim, self.lipid_particles_by_res[resid]) for resid in self.detected_lipids], axis=1)
@@ -114,8 +116,6 @@ class Membrane:
                     categorised["aggregate"] += leaflets[leaflet_id]
                     continue
                 # Get lipid vectors for all lipids in the leaflet
-                #leaflet_vectors = np.asarray([get_lipid_vector(frame,resid) for resid in leaflets[leaflet_id]])
-
                 leaflet_vectors = self.vectors[frame_index, leaflets[leaflet_id]]
 
                 logging.debug("Fetched %s lipid vectors from leaflet %s." % (len(leaflet_vectors), leaflet_id))
@@ -162,17 +162,11 @@ class Membrane:
 
                 nhood = list({self.lipid_residues_by_particle[particle] for particle in nhood_particles})
 
-                # Run colinearity check outside loop
-
                 # For each neighbor
                 for nbor in nhood:
                     # Proceed if residue has not been processed
                     if processed.get(nbor, False):
                         continue
-                    # Proceed if vectors are co-linear
-                    #if not (angle_between(get_lipid_vector(frame, self.hg_particles_by_res, self.lipid_particles_by_res, lipid),
-                    #                      get_lipid_vector(frame, self.hg_particles_by_res, self.lipid_particles_by_res, nbor)) < 90):
-                    #    continue
 
                     if not (angle_between(self.vectors[frame_index, lipid], self.vectors[frame_index, nbor]) < 90):
                         continue
@@ -206,20 +200,7 @@ class Membrane:
                     # If the agg_to_join lipid head groups are close to those in the current leaflet, add to leaflet
                     # MDTraj doesn't include a library for finding the minimum distance between two groups,
                     # so evaluate this using compute_neighbors with the decision threshold as the cutoff.
-                    '''
-                    query_string = " or resid ".join(str(x) for x in aggregates[agg_id])
-                    all_particles_query = frame.topology.select("resid " + query_string)
-                    hg_query = [particle for particle in all_particles_query if
-                                frame.topology.atom(particle).name in particle_naming.headgroup_names]
-                    '''
                     hg_query = np.concatenate([self.hg_particles_by_res[resid] for resid in aggregates[agg_id]])
-
-                    '''
-                    haystack_string = " or resid ".join(str(x) for x in aggregates[agg_to_join])
-                    all_particles_haystack = frame.topology.select("resid " + haystack_string)
-                    hg_haystack = [particle for particle in all_particles_haystack if
-                                   frame.topology.atom(particle).name in particle_naming.headgroup_names]
-                    '''
                     hg_haystack = np.concatenate([self.hg_particles_by_res[resid] for resid in aggregates[agg_to_join]])
 
                     logging.debug("Searching for mergeables: leaflet %s (%s lipids), haystack agg %s (%s lipids)" %
