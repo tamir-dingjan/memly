@@ -53,6 +53,7 @@ class Membrane:
 
         # Populate useful one-off lookups
         # Construct set for head group filter membership testing
+        # TODO - why does this only select two particles per lipid?
         self.hg_set = set(self.sim.topology.select("name " + " or name ".join([x for x in particle_naming.headgroup_names])))
 
         # Collect lipid residue indices and lipid particle indices
@@ -75,8 +76,16 @@ class Membrane:
         self.hg_particles_by_res = {resid: tuple(self.hg_set.intersection(self.lipid_particles_by_res[resid])) for resid in self.detected_lipids}
 
         # Pre-calculate all lipid vectors
-        self.hg_centroids = np.mean(self.sim.xyz[:, [np.asarray(self.hg_particles_by_res[resid]) for resid in self.detected_lipids], :], axis=2)
-        self.com_centroids = np.asarray([np.mean(self.sim.xyz[:, np.asarray(self.lipid_particles_by_res[resid]), :], axis=1).flatten() for resid in self.detected_lipids])
+        # Use numpy stack to allow indexing using different numbers of head group particles in each lipid
+        #self.hg_centroids = np.mean(self.sim.xyz[:, [np.asarray(self.hg_particles_by_res[resid]) for resid in self.detected_lipids], :], axis=2)
+        self.hg_centroids = np.stack([get_centroid_of_particles(self.sim, self.hg_particles_by_res[resid]) for resid in self.detected_lipids], axis=1)
+
+
+        #self.com_centroids = np.mean(self.sim.xyz[:, np.asarray([self.lipid_particles_by_res[resid] for resid in self.detected_lipids]), :], axis=2)
+
+        # Use numpy stack to allow indexing using different numbers of particles found in each lipid
+        self.com_centroids = np.stack([get_centroid_of_particles(self.sim, self.lipid_particles_by_res[resid]) for resid in self.detected_lipids], axis=1)
+
         self.vectors = self.com_centroids - self.hg_centroids
 
         # Detect leaflets
@@ -234,6 +243,10 @@ class Membrane:
                     logging.debug("Merged aggregates %s and %s" % (agg_id, agg_to_join))
             logging.debug("Found %s leaflets." % len(leaflets.keys()))
             self.raw_leaflets.append(leaflets)
+
+
+def get_centroid_of_particles(sim, particles):
+    return np.mean(sim.xyz[:, particles, :], axis=1)
 
 
 def get_lipid_vector(frame, hg_particles_by_res, lipid_particles_by_res, residue_index):
