@@ -137,6 +137,8 @@ class Membrane:
         """
 
         for frame_index, frame in enumerate(self.sim):
+            logging.debug("Frame: %s" % frame_index)
+
             # Initialise
             processed = {}
             aggregates = defaultdict(list)
@@ -210,7 +212,7 @@ class Membrane:
                     hg_query = [particle for particle in all_particles_query if
                                 frame.topology.atom(particle).name in particle_naming.headgroup_names]
                     '''
-                    hg_query = np.asarray([self.hg_particles_by_res[resid] for resid in aggregates[agg_id]]).flatten()
+                    hg_query = np.concatenate([self.hg_particles_by_res[resid] for resid in aggregates[agg_id]])
 
                     '''
                     haystack_string = " or resid ".join(str(x) for x in aggregates[agg_to_join])
@@ -218,7 +220,7 @@ class Membrane:
                     hg_haystack = [particle for particle in all_particles_haystack if
                                    frame.topology.atom(particle).name in particle_naming.headgroup_names]
                     '''
-                    hg_haystack = np.asarray([self.hg_particles_by_res[resid] for resid in aggregates[agg_to_join]]).flatten()
+                    hg_haystack = np.concatenate([self.hg_particles_by_res[resid] for resid in aggregates[agg_to_join]])
 
                     logging.debug("Searching for mergeables: leaflet %s (%s lipids), haystack agg %s (%s lipids)" %
                                   (leaflet_id, len(leaflets[leaflet_id]), agg_to_join, len(aggregates[agg_to_join])))
