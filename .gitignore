@@ -103,3 +103,11 @@ ENV/
 
 # mypy
 .mypy_cache/
+/memly/tests/data/labelled.pdb
+/memly/tests/data/labelled_converted.pdb
+/memly/tests/data/cube_twist.obj
+/memly/tests/data/snap.pdb
+/memly/tests/data/2_old.pdb
+/memly/tests/data/2_old.xtc
+/memly/tests/data/normals.pdb
+/memly/tests/data/normals_converted.pdb

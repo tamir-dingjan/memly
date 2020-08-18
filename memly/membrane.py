@@ -8,10 +8,12 @@ from collections import defaultdict
 import logging
 import os
 from string import ascii_uppercase
+from itertools import chain
 
 import numpy as np
-import pandas as pd
 import mdtraj as md
+import point_cloud_utils as pcu
+import networkx as nx
 
 from memly import loader
 from memly import particle_naming
@@ -28,27 +30,13 @@ class Membrane:
         :param str top: Full filepath location to MDTraj-readable topology file (e.g., pdb, gro).
         :param bool load: Flag to load trajectory.
         """
-        """
-        Instantiate the membrane object with loaded trajectory.
-
-        Parameters
-        ----------
-        traj : str
-            Full filepath specifying the location of simulation trajectory.
-        top : str
-            Full filepath specifying the location of topology file.
-        load : bool (
-        Returns
-        -------
-        None.
-
-        """
 
         self.load = load
         self.traj_file = traj
         self.top_file = top
         self.raw_leaflets = []
         self.leaflets = []
+        self.min_leaflet_size = 10
 
         if self.load:
             self.sim = loader.load(self.traj_file, self.top_file)
@@ -82,6 +70,7 @@ class Membrane:
         self.hg_particles_by_res = {resid: tuple(self.hg_set.intersection(self.lipid_particles_by_res[resid])) for resid in self.detected_lipids}
 
         # Pre-calculate all lipid vectors
+        # NOTE: This requires the original trajectory file to be PBC-corrected, so that all molecules are whole in every frame.
         # Use numpy stack to allow indexing using different numbers of head group particles in each lipid
         self.hg_centroids = np.stack([get_centroid_of_particles(self.sim, self.hg_particles_by_res[resid]) for resid in self.detected_lipids], axis=1)
 
@@ -90,9 +79,19 @@ class Membrane:
 
         self.vectors = self.com_centroids - self.hg_centroids
 
+        # Precalculate local neighborhood lipid vector normals
+        # This is not done in a PBC-aware fashion. It therefore tends to mess up in the corners if too many nearest
+        # neighbors are selected for the normal estimation, by dragging the vectors towards the box COM.
+        self.normals = np.asarray([pcu.estimate_normals(frame, k=20) for frame in self.hg_centroids])
+
         # Detect leaflets
-        self.detect_aggregates(neighbor_cutoff=3, merge_cutoff=1)
-        self.categorise_leaflets(min_leaflet_size=10)
+        # Old, slow method based on mdtraj neighbor searching
+        # self.detect_aggregates(neighbor_cutoff=3, merge_cutoff=1)
+        # self.categorise_leaflets(min_leaflet_size=10)
+
+        # New method based on vector alignment
+        self.detect_leaflets()
+
 
     def categorise_leaflets(self, min_leaflet_size=10):
         """
@@ -120,7 +119,7 @@ class Membrane:
 
                 logging.debug("Fetched %s lipid vectors from leaflet %s." % (len(leaflet_vectors), leaflet_id))
                 avg_leaflet_vector = np.mean(leaflet_vectors, axis=0)
-                logging.debug("Average leaflet vector: %s" % (avg_leaflet_vector))
+                logging.debug("Average leaflet vector: %s" % avg_leaflet_vector)
                 # Get orientation of leaflet w.r.t Z axis
                 if avg_leaflet_vector[2] < 0:
                     categorised["upper"] += leaflets[leaflet_id]
@@ -135,6 +134,7 @@ class Membrane:
         :param merge_cutoff:
         :return:
         """
+
 
         for frame_index, frame in enumerate(self.sim):
             logging.debug("Frame: %s" % frame_index)
@@ -182,6 +182,7 @@ class Membrane:
             # Where aggregate lipids have head groups close to the head groups of other lipids, those
             # aggregates should be considered as the same. However, the proximity should be smaller
             # than the bilayer width.
+
             merged = {}
             leaflets = defaultdict(list)
             leaflet_id = -1
@@ -226,6 +227,139 @@ class Membrane:
                     logging.debug("Merged aggregates %s and %s" % (agg_id, agg_to_join))
             logging.debug("Found %s leaflets." % len(leaflets.keys()))
             self.raw_leaflets.append(leaflets)
+
+    def detect_leaflets(self):
+        """
+        Detect the raw leaflets, built from neighbor connectedness (criteria: head group distance and
+        normal vector alignment).
+        :return:
+        """
+
+        for frame_index, frame in enumerate(self.sim):
+            logging.debug("Frame: %s" % frame_index)
+
+            # Instantiate the network graph with all lipids
+            g = nx.Graph()
+            g.add_nodes_from(self.detected_lipids)
+
+            # How to add all graph edges at once?
+            # Need to package up the edges as an iterable of tuples
+            # map(g.add_edges_from, self.detected_lipids, )
+
+            # For each unconnected lipid in the network
+            for lipid in self.detected_lipids:
+                if len(g[lipid]) == 0:
+                    # Connect it to all its neighbors (multiple connections per node to prevent dead ends in linkage)
+                    for nbor in self.get_lipid_nbors(frame_index, lipid):
+                        # Ignore the self-matched neighbor
+                        if nbor == lipid:
+                            continue
+                        g.add_edge(lipid, nbor)
+
+            # Merge self-contained networks to give leaflets and aggregates
+            self.raw_leaflets.append(list(nx.connected_components(g)))
+
+        # Categorise the leaflets
+        for frame_index, leaflets in enumerate(self.raw_leaflets):
+            categorised = defaultdict(list)
+
+            # Classify leaflets below minimum size as aggregate
+            for leaflet in leaflets:
+                # Assign small aggregates
+                if len(leaflet) < self.min_leaflet_size:
+                    categorised["aggregate"] += list(leaflet)
+                    continue
+
+                # Remaining leaflets are large enough to be considered a membrane
+                # Check the average lipid vector orientation to assign upper vs lower
+                avg_leaflet_vector = np.mean(self.vectors[frame_index, list(leaflet)], axis=0)
+                if avg_leaflet_vector[2] < 0:
+                    categorised["upper"] += list(leaflet)
+                else:
+                    categorised["lower"] += list(leaflet)
+
+            self.leaflets.append(categorised)
+
+
+    def get_lipid_nbors(self, frame, query_lipid):
+        """
+        Get the neighboring lipids for the provided query lipid residue index.
+        The requirements for a nearby lipid to be considered a neighbor are:
+            1. Head group centroid is within the (Euclidean) distance threshold of the query lipid headgroup centroid.
+            2. Normal vector is within the tilt threshold of the query lipid normal vector.
+        :param int frame: Simulation frame to check in (0-indexed).
+        :param int query_lipid: Residue index of the query lipid.
+        :return: NDArray of neighboring lipid residue indices
+        """
+
+        threshold = 1
+        tilt = 30
+
+        # First check Euclidean-near lipids to the query head group
+        # Compare the distances to every other head group centroid - could do this as a mask operation in init?
+        nbors_distance = np.flatnonzero(np.all(np.abs(self.hg_centroids[frame] - self.hg_centroids[frame][query_lipid]) < threshold, axis=1))
+
+        # Then check the normal vector alignment
+        nbors_tilt = np.flatnonzero(np.asarray([angle_between(self.normals[frame][i], self.normals[frame][query_lipid]) for i in nbors_distance]) < tilt)
+
+        # Final neighbors meet both requirements
+        nbors = nbors_distance[nbors_tilt]
+
+        return nbors
+
+
+def export_frame_with_normals(frame, hg_centroids, normals, output_path):
+    frame.save_pdb(output_path)
+
+    # Normal vectors are specified in unit circles - need to extend these the greater magnitude to make
+    # them more obvious
+    normals = 5 * normals
+
+    # Calculate the spatial end positions of normal vectors
+    termini = hg_centroids + normals
+
+    # Add centroids and termini to the frame
+    converted_path = os.path.splitext(output_path)[0] + \
+                     "_converted" + \
+                     os.path.splitext(output_path)[1]
+    with open(output_path, 'r') as fin, open(converted_path, 'w') as fout:
+        atom_num = 0
+        conect_records = []
+        for line in fin:
+            # Transfer over existing coordinate lines
+            if line[:4] == 'ATOM':
+                atom_num = int(line[6:11].strip())
+                fout.write(line)
+            elif line[:3] == 'TER':
+                # Insert new particles before TER
+                for centroid, terminus in zip(hg_centroids, termini):
+                    atom_num += 1
+                    # Write the start and end coordinates for the normal vector
+                    # Note: MDTraj uses nm coordinates, while PDB exports use Angstrom, so convert by 10.
+                    fout.write("ATOM  " +
+                               '{:>5}'.format(atom_num) +
+                               " VNC  VEC V   1    " +
+                               '{:8.3f}'.format(10 * centroid[0]) +
+                               '{:8.3f}'.format(10 * centroid[1]) +
+                               '{:8.3f}'.format(10 * centroid[2]) +
+                               "  1.00  0.00          VP\n")
+                    atom_num += 1
+                    fout.write("ATOM  " +
+                               '{:>5}'.format(atom_num) +
+                               " VNT  VEC V   1    " +
+                               '{:8.3f}'.format(10 * terminus[0]) +
+                               '{:8.3f}'.format(10 * terminus[1]) +
+                               '{:8.3f}'.format(10 * terminus[2]) +
+                               "  1.00  0.00          VP\n")
+                    # Save CONECT record
+                    conect_records.append("CONECT" + '{:>5}'.format(atom_num-1) + '{:>5}'.format(atom_num) + "\n")
+                fout.write("TER   " + '{:>5}'.format(atom_num) + "\n")
+            elif line[:3] == 'END':
+                # Write CONECT records before END
+                for rec in conect_records:
+                    fout.write(rec)
+            else:
+                fout.write(line)
 
 
 def get_centroid_of_particles(sim, particles):
@@ -303,3 +437,5 @@ def angle_between(v1, v2):
     return np.degrees(np.arccos(np.clip(np.dot(v1_u, v2_u), -1.0, 1.0)))
 
 
+def lipid_neighbor_check(frame, lipid1, lipid2):
+    a = 1 # Check if the two provided lipids are neighboring in the given frame.
