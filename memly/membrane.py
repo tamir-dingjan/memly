@@ -8,11 +8,9 @@ from collections import defaultdict
 import logging
 import os
 from string import ascii_uppercase
-from itertools import chain
 from numbers import Number
 
 import numpy as np
-import mdtraj as md
 import point_cloud_utils as pcu
 import networkx as nx
 
@@ -85,149 +83,8 @@ class Membrane:
         # neighbors are selected for the normal estimation, by dragging the vectors towards the box COM.
         self.normals = np.asarray([pcu.estimate_normals(frame, k=20) for frame in self.hg_centroids])
 
-        # Detect leaflets
-        # Old, slow method based on mdtraj neighbor searching
-        # self.detect_aggregates(neighbor_cutoff=3, merge_cutoff=1)
-        # self.categorise_leaflets(min_leaflet_size=10)
-
-        # New method based on vector alignment
+        # Detect leaflets using vector alignment
         self.detect_leaflets()
-
-
-    def categorise_leaflets(self, min_leaflet_size=10):
-        """
-        Sort the detected leaflets to apply the labels used in metric analysis.
-
-        Process:
-            1. Leaflets with fewer than min_leaflet_size lipids are labelled "aggregate"
-            2. Find the average lipid vector orientation of large leaflets
-            3. Define "upper" as vectors pointing towards negative Z axis
-
-        :return:
-        """
-
-        for frame_index, (frame, leaflets) in enumerate(zip(self.sim, self.raw_leaflets)):
-            categorised = defaultdict(list)
-
-            # Remaining leaflets are large enough to be considered a membrane
-            for leaflet_id in leaflets.keys():
-                # Assign small aggregates
-                if len(leaflets[leaflet_id]) < min_leaflet_size:
-                    categorised["aggregate"] += leaflets[leaflet_id]
-                    continue
-                # Get lipid vectors for all lipids in the leaflet
-                leaflet_vectors = self.vectors[frame_index, leaflets[leaflet_id]]
-
-                logging.debug("Fetched %s lipid vectors from leaflet %s." % (len(leaflet_vectors), leaflet_id))
-                avg_leaflet_vector = np.mean(leaflet_vectors, axis=0)
-                logging.debug("Average leaflet vector: %s" % avg_leaflet_vector)
-                # Get orientation of leaflet w.r.t Z axis
-                if avg_leaflet_vector[2] < 0:
-                    categorised["upper"] += leaflets[leaflet_id]
-                else:
-                    categorised["lower"] += leaflets[leaflet_id]
-            self.leaflets.append(categorised)
-
-    def detect_aggregates(self, neighbor_cutoff=3, merge_cutoff=1):
-        """
-        Detect aggregates in each frame of the simulation.
-        :param neighbor_cutoff:
-        :param merge_cutoff:
-        :return:
-        """
-
-
-        for frame_index, frame in enumerate(self.sim):
-            logging.debug("Frame: %s" % frame_index)
-
-            # Initialise
-            processed = {}
-            aggregates = defaultdict(list)
-            agg_id = -1
-
-            # Assign each lipid residue to an aggregate
-            for lipid in self.detected_lipids:
-                # Proceed if residue has not been processed
-                if processed.get(lipid, False):
-                    continue
-                # Add lipid to a new aggregate
-                agg_id += 1
-                aggregates[agg_id].append(lipid)
-                # Mark lipid as processed
-                processed[lipid] = True
-                # Get the lipid neighbourhood
-                nhood_particles = md.compute_neighbors(traj=frame,
-                                                       cutoff=neighbor_cutoff,
-                                                       haystack_indices=self.lipid_particles,
-                                                       query_indices=self.lipid_particles_by_res[lipid])[0]
-
-                nhood = list({self.lipid_residues_by_particle[particle] for particle in nhood_particles})
-
-                # For each neighbor
-                for nbor in nhood:
-                    # Proceed if residue has not been processed
-                    if processed.get(nbor, False):
-                        continue
-
-                    if not (angle_between(self.vectors[frame_index, lipid], self.vectors[frame_index, nbor]) < 90):
-                        continue
-
-                    # Add neighbor to aggregate
-                    aggregates[agg_id].append(nbor)
-                    # Mark neighbor as processed
-                    processed[nbor] = True
-
-            logging.debug("Collected %s aggregates" % len(aggregates.keys()))
-
-            # Merge aggregates
-            # Where aggregate lipids have head groups close to the head groups of other lipids, those
-            # aggregates should be considered as the same. However, the proximity should be smaller
-            # than the bilayer width.
-
-            merged = {}
-            leaflets = defaultdict(list)
-            leaflet_id = -1
-            for agg_id in aggregates.keys():
-                # Proceed if not already merged
-                if merged.get(agg_id, False):
-                    continue
-                leaflet_id += 1
-                leaflets[leaflet_id] += aggregates[agg_id]
-                logging.debug("New leaflet: %s (%s lipids)" % (leaflet_id, len(leaflets[leaflet_id])))
-                merged[agg_id] = True
-                for agg_to_join in aggregates.keys():
-                    # Proceed if not already merged
-                    if merged.get(agg_to_join, False):
-                        continue
-                    # If the agg_to_join lipid head groups are close to those in the current leaflet, add to leaflet
-                    # MDTraj doesn't include a library for finding the minimum distance between two groups,
-                    # so evaluate this using compute_neighbors with the decision threshold as the cutoff.
-                    hg_query = np.concatenate([self.hg_particles_by_res[resid] for resid in aggregates[agg_id]])
-                    hg_haystack = np.concatenate([self.hg_particles_by_res[resid] for resid in aggregates[agg_to_join]])
-
-                    logging.debug("Searching for mergeables: leaflet %s (%s lipids), haystack agg %s (%s lipids)" %
-                                  (leaflet_id, len(leaflets[leaflet_id]), agg_to_join, len(aggregates[agg_to_join])))
-                    contacts = md.compute_neighbors(traj=frame,
-                                                    cutoff=merge_cutoff,
-                                                    haystack_indices=hg_haystack,
-                                                    query_indices=hg_query)[0]
-                    # Check if any contact between the two aggregates
-                    logging.debug(("Found %s particles within merge_cutoff of leaflet %s" %
-                                   (len(contacts), leaflet_id)))
-                    if len(contacts) == 0:
-                        # If this aggregate has no contacts, it may only be in proximity to aggregates that have already
-                        # been processed and are now allocated to leaflets. So, this aggregate may still belong to a
-                        # leaflet. How to handle this aggregate?
-                        # 1. Check at end when we have more leaflets?
-                        # 2. Check against all currently existing leaflets?
-                        # 3. Something else?
-
-                        continue
-                    leaflets[leaflet_id] += aggregates[agg_to_join]
-                    merged[agg_to_join] = True
-                    logging.debug("Merged aggregates %s and %s" % (agg_id, agg_to_join))
-            logging.debug("Found %s leaflets." % len(leaflets.keys()))
-            self.raw_leaflets.append(leaflets)
 
     def detect_leaflets(self):
         """
@@ -280,7 +137,6 @@ class Membrane:
                     categorised["lower"] += list(leaflet)
 
             self.leaflets.append(categorised)
-
 
     def get_lipid_nbors(self, frame, query_lipid):
         """
@@ -443,7 +299,3 @@ def angle_between(v1, v2):
     v1_u = unit_vector(v1)
     v2_u = unit_vector(v2)
     return np.degrees(np.arccos(np.clip(np.dot(v1_u, v2_u), -1.0, 1.0)))
-
-
-def lipid_neighbor_check(frame, lipid1, lipid2):
-    a = 1 # Check if the two provided lipids are neighboring in the given frame.

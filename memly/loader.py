@@ -10,6 +10,7 @@ import mdtraj as md
 
 # Loading function
 
+
 def load(traj, top):
     """
     Load the specified trajectory and topology files.
