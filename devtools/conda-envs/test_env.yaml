@@ -5,6 +5,9 @@ dependencies:
   - python
   - pip
   - pandas
+  - mdtraj
+  - point_cloud_utils
+  - networkx
 
     # Testing
   - pytest
