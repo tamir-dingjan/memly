@@ -9,6 +9,7 @@ import logging
 import os
 from string import ascii_uppercase
 from itertools import chain
+from numbers import Number
 
 import numpy as np
 import mdtraj as md
@@ -399,9 +400,16 @@ def export_labelled_snapshot(frame, labels, output_path):
     # Assign labels to chains
     chains = {}
     for label in labels.keys():
+        # If the label is not a number, cast a new label that is.
+        if not isinstance(label, Number):
+            new_label = sorted(list(labels.keys())).index(label)
+        else:
+            new_label = label
+
         for resid in labels[label]:
-            chains[int(resid)] = ascii_uppercase[int(label) % len(ascii_uppercase)]
+            chains[int(resid)] = ascii_uppercase[int(new_label) % len(ascii_uppercase)]
             logging.debug("Assigned chain %s to resid %s." % (chains[int(resid)], int(resid)))
+
     logging.debug("Total number of residues with assigned chains: %s" % (len(chains.keys())))
     logging.debug("Residue indices with assigned chains: %s" % chains.keys())
     # Edit the snapshot chain IDs
