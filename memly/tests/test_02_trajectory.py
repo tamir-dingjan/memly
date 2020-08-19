@@ -22,5 +22,9 @@ x = memly.Membrane(traj, top, load=True)
 #                                          x.normals[frame_id],
 #                                          os.path.join(THIS_DIR, "data/normals.pdb"))
 
-for frame_i, frame in enumerate(x.sim):
-    memly.membrane.export_labelled_snapshot(frame, x.leaflets[frame_i], os.path.join(THIS_DIR, "data/leaflet_id/"+str(frame_i)+".pdb"))
+# for frame_i, frame in enumerate(x.sim):
+#     memly.membrane.export_labelled_snapshot(frame, x.leaflets[frame_i], os.path.join(THIS_DIR, "data/leaflet_id/"+str(frame_i)+".pdb"))
+
+np.testing.assert_array_equal(len(x.leaflets[10]['upper']), 1460)
+np.testing.assert_array_equal(len(x.leaflets[10]['lower']), 1404)
+np.testing.assert_array_equal(len(x.leaflets[10]['aggregate']), 92)
