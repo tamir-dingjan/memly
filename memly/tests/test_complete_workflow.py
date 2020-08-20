@@ -11,6 +11,7 @@ import pytest
 
 import memly
 
+
 def test_complete_workflow():
     # Setup access to datafiles
     THIS_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -19,6 +20,10 @@ def test_complete_workflow():
 
     x = memly.Analysis(traj, top, load=True)
 
-    # x.split_leaflets()
+    x.run_all_analyses()
+
+    return x.results
+
 
 result = test_complete_workflow()
+

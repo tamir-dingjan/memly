@@ -102,7 +102,7 @@ class Membrane:
 
             # How to add all graph edges at once?
             # Need to package up the edges as an iterable of tuples
-            # map(g.add_edges_from, self.detected_lipids, )
+            # map(g.add_edges_from, self.detected_lipids,
 
             # For each unconnected lipid in the network
             for lipid in self.detected_lipids:
