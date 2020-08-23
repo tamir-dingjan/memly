@@ -3,7 +3,8 @@ Extensible analysis tool for lipid bilayer simulations.
 """
 
 # Add imports here
-from memly.analysis import Analysis
+from .analysis import Analysis
+from .membrane import Membrane
 
 
 # Handle versioneer
@@ -17,3 +18,8 @@ del get_versions, versions
 def say_hello():
     """say hello"""
     print("Hello!")
+
+
+def say_goodbye():
+    """say goodbye"""
+    print("Goodbye!")

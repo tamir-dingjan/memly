@@ -10,6 +10,7 @@ import mdtraj as md
 
 # Loading function
 
+
 def load(traj, top):
     """
     Load the specified trajectory and topology files.
@@ -25,6 +26,7 @@ def load(traj, top):
     -------
     MDTraj trajectory object
         The loaded trajectory.
+        :rtype:
 
     """
     # Check if the specified files exist

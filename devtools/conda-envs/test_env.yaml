@@ -1,10 +1,14 @@
 name: test
 channels:
+  - conda-forge
 dependencies:
     # Base depends
   - python
   - pip
   - pandas
+  - networkx
+  - point_cloud_utils
+  - mdtraj
 
     # Testing
   - pytest
@@ -12,6 +16,6 @@ dependencies:
 
   # Pip-only installs
   - pip:
-    - mdtraj
     - codecov
+
 

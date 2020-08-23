@@ -30,7 +30,7 @@ except ImportError:
                               "Could not find PyYAML or Ruamel YAML in the current environment, "
                               "AND could not find Ruamel YAML in the base conda environment through CONDA_EXE path. " 
                               "Environment not created!")
-    loader = yaml.YAML(typ="safe").load  # typ="safe" avoids odd typing on output
+    loader = yaml.YAML(typ="safe").load(Loader=yaml.FullLoader)  # typ="safe" avoids odd typing on output
 
 
 @contextmanager
