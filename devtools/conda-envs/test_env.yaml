@@ -9,6 +9,7 @@ dependencies:
   - networkx
   - point_cloud_utils
   - mdtraj
+  - shapely
 
     # Testing
   - pytest
