@@ -10,7 +10,7 @@ dependencies:
   - point_cloud_utils
   - mdtraj
   - shapely
-  - geovoronoi
+
 
     # Testing
   - pytest
@@ -19,5 +19,5 @@ dependencies:
   # Pip-only installs
   - pip:
     - codecov
-
+    - geovoronoi
 
