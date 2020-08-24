@@ -11,6 +11,8 @@ Memly is a **mem**brane ana**ly**sis tool for molecular dynamics simulations of 
  - Frame-by-frame leaflet identification can capture lipid flip-flop
  - Easily extensible design makes it simple to add or customize analysis functions
 
+Current analysis metrics:
+ - Surface area per lipid
 
 
 ### Copyright

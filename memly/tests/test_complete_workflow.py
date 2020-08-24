@@ -15,8 +15,8 @@ import memly
 def test_complete_workflow():
     # Setup access to datafiles
     THIS_DIR = os.path.dirname(os.path.abspath(__file__))
-    traj = os.path.join(THIS_DIR, "data/1.xtc")
-    top = os.path.join(THIS_DIR, "data/1.pdb")
+    traj = os.path.join(THIS_DIR, "data/2.xtc")
+    top = os.path.join(THIS_DIR, "data/2.pdb")
 
     x = memly.Analysis(traj, top, load=True)
 
@@ -26,4 +26,3 @@ def test_complete_workflow():
 
 
 result = test_complete_workflow()
-

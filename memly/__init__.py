@@ -6,6 +6,8 @@ Extensible analysis tool for lipid bilayer simulations.
 from .analysis import Analysis
 from .membrane import Membrane
 
+import logging
+logging.basicConfig(level=logging.INFO)
 
 # Handle versioneer
 from ._version import get_versions
