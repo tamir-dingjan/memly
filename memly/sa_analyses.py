@@ -29,6 +29,12 @@ class SurfaceArea(Metric):
         self.voronoi = {}
         self.apl = {}
         self.apl_mean = {}
+        self.acm = 0
+        self.acm_feller = {}
+
+        # Values of constants used in analyses
+        self.boltzmann = 1.380649E-23  # J/K
+        self.temp = 310  # K
 
         # Get the bounds of the simulation box
         self.box_vertices = [[[0, 0],
@@ -47,6 +53,9 @@ class SurfaceArea(Metric):
             self.calculate_apl(leaflet)
 
         # TODO - Store the area per lipid type
+
+        self.calculate_acm()
+        # TODO - evaluate the area compression modulus over each leaflet seperately
 
     def get_projection(self, leaflet="upper"):
         """
@@ -91,3 +100,36 @@ class SurfaceArea(Metric):
 
         # Log the result
         self.add_results(lipid="All", value=self.apl_mean[leaflet], leaflet=leaflet)
+
+    def calculate_acm(self):
+        """
+        Calculate the area compressibility modulus for the chosen leaflet. This is the energetic
+        cost associated with stretching or compressing the membrane area.
+
+        This implementation is drawn from: Wang, E. & Klauda, J. B. J. Phys. Chem. B 123, 2525–2535 (2019).
+        The area used here is the area of the entire simulation box, and so is not leaflet-specific.
+
+        :return:
+        """
+
+        # Get the average surface area of the whole bilayer, over time. This can be approximated by taking the
+        # XY area of the simulation box.
+        boxarea = [i.area for i in self.box_bounds]
+        area = np.mean(boxarea)
+        variance = np.var(boxarea)
+
+        # Calculate the ACM
+        # The area scale here is in nm^2, so apply the 10^-18 conversion to reach m^2, and square the units for variance
+
+        # Doktorova uses the area of the whole simulation box
+        self.acm = (self.boltzmann * self.temp * area * 1E-18) / (variance * 1E-36)
+
+        # Feller and Pastor use the area per lipid - need to do separately per leaflet
+        for leaflet in ["upper", "lower"]:
+            # Get the number of lipids in each leaflet over time
+            lipidcount = [len(self.membrane.leaflets[frame][leaflet]) for frame in range(0,len(self.membrane.sim))]
+            self.acm_feller[leaflet] = [(self.boltzmann * self.temp * np.mean(apl) * 1E-18) / (nlipids * np.var(apl) * 1E-36)
+                                        for apl, nlipids in zip(self.apl[leaflet], lipidcount)]
+
+        # Log the result
+        self.add_results(title="Area compression modulus", lipid="All", value=self.acm, units="N/m", leaflet="Both")

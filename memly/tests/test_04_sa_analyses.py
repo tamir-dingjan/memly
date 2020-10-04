@@ -17,5 +17,3 @@ analyser = memly.Analysis(traj, top, load=True)
 
 sa_obj = sa_analyses.SurfaceArea(membrane=analyser.membrane)
 
-sa_obj.calculate_apl(leaflet="upper")
-

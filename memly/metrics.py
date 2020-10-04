@@ -37,17 +37,24 @@ class Metric:
         self.columns = ["metric_title", "lipid", "value", "units", "leaflet"]
         self.results = pd.DataFrame(data=None, index=None, columns=self.columns)
 
-    def add_results(self, lipid="All", value=None, leaflet="Both"):
+    def add_results(self, title=None, lipid="All", value=None, units=None, leaflet="Both"):
         """
         Populates the self.results dataframe.
         This function is called by children metric classes.
 
+        The title and units have been given None defaults to allow them to be replaced by commands in metric
+        objects. This is useful when including multiple kinds of closely related metric in a single object.
+
         Parameters
         ----------
+        title : str, optional
+            Title of the metric. Defaults to None, which is replaced below with the self.title of the metric object.
         lipid : str, optional
             Label of the lipid species pertinent to the value. The default is "All".
         value : str or int or float, optional
             Metric value. The default is None.
+        units : str, optional
+            Units of the metric. Defaults to None, which is replaced below with the self.units of the metric object.
         leaflet : str, optional
             Label of the leaflet this result corresponds to. The default is "Both".
 
@@ -56,9 +63,15 @@ class Metric:
         None.
 
         """
-        self.results = self.results.append({"metric_title": self.title,
+        if title is None:
+            title = self.title
+
+        if units is None:
+            units = self.units
+
+        self.results = self.results.append({"metric_title": title,
                                             "lipid": lipid,
                                             "value": value,
-                                            "units": self.units,
+                                            "units": units,
                                             "leaflet": leaflet}, ignore_index=True)
 

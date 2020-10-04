@@ -37,4 +37,4 @@ class CountLipids(Metric):
             self.value[leaflet] = [len(i[leaflet]) for i in self.membrane.leaflets]
 
             # Use the parent class method to append this metric's results
-            self.add_results(lipid="All", value=self.value[leaflet], leaflet=leaflet)
+            self.add_results(self.title, lipid="All", value=self.value[leaflet], leaflet=leaflet)
