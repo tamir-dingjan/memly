@@ -17,8 +17,6 @@ import networkx as nx
 from memly import loader
 from memly import particle_naming
 
-logging.basicConfig(level=logging.INFO)
-
 
 class Membrane:
     def __init__(self, traj, top, load=True):
