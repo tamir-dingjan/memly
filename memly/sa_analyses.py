@@ -106,8 +106,40 @@ class SurfaceArea(Metric):
         Calculate the area compressibility modulus for the chosen leaflet. This is the energetic
         cost associated with stretching or compressing the membrane area.
 
-        This implementation is drawn from: Wang, E. & Klauda, J. B. J. Phys. Chem. B 123, 2525–2535 (2019).
+        This implementation is drawn from: Wang, E. & Klauda, J. B. J. Phys. Chem. B 123, 2525–2535 (2019):
+        Eq (2):
+        K(A) = ( k(B) * T * <A> ) / ( N * sigma^2(<A>) )
+        where:  k(B)    Boltzmann's constant
+                T       Absolute temperature
+                <A>     Ensemble average surface area of membrane
+                N       Number of lipids in membrane
+                sigma^2(<A>)    Variance of the surface area
+
         The area used here is the area of the entire simulation box, and so is not leaflet-specific.
+
+        A slightly different implementation is presented in: Doktorova, M., et al. Biophys. J. 116, 487–502 (2019):
+        Eq (2):
+        K(A) = ( k(B) * T * a0 ) / ( <(a - a0)^2> )
+        where:  k(B)    Boltzmann's constant
+                T       Absolute temperature
+                a0      Equilibrium membrane area
+                a       Membrane area
+
+        Note that the denominator is just the variance of the membrane area (ensemble average of the squared deviations
+        from the mean area). So this implementation simplifies to the same as Wang's, without scaling by the number of
+        lipids present.
+
+        Finally, Feller and Pastor present another implementation.
+        Feller, S. E. & Pastor, R. W. J. Chem. Phys. 111, 1281–1287 (1999):
+        Eq (3):
+        K(A) = ( k(B) * T * A0 ) / ( N * <sigma(A0)^2> )
+        where:  k(B)    Boltzmann's constant
+                T       Absolute temperature
+                A0      Average area per molecule
+                N       Number of molecules
+                sigma(A0)^2     Variance of the area per molecule
+
+
 
         :return:
         """
@@ -131,5 +163,7 @@ class SurfaceArea(Metric):
             self.acm_feller[leaflet] = [(self.boltzmann * self.temp * np.mean(apl) * 1E-18) / (nlipids * np.var(apl) * 1E-36)
                                         for apl, nlipids in zip(self.apl[leaflet], lipidcount)]
 
-        # Log the result
-        self.add_results(title="Area compression modulus", lipid="All", value=self.acm, units="N/m", leaflet="Both")
+        # Log the results
+        self.add_results(title="Area compression modulus (Doktorova2019)", lipid="All", value=self.acm, units="N/m", leaflet="Both")
+        for leaflet in ["upper", "lower"]:
+            self.add_results(title="Area compression modulus (Feller1999)", lipid="All", value=self.acm_feller[leaflet], units="N/m", leaflet=leaflet)
