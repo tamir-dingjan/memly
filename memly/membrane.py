@@ -50,6 +50,7 @@ class Membrane:
         # Collect lipid residue indices and lipid particle indices
         self.detected_lipids = [x.index for x in self.sim.topology.residues if (particle_naming.ion_names.isdisjoint({x.name}) and particle_naming.water_names.isdisjoint({x.name}))]
         logging.debug("Number of lipids detected: %s" % len(self.detected_lipids))
+        self.residue_names = sorted(set([self.sim.topology.residue(index).name for index in self.detected_lipids]))
 
         # Collect all lipid particle indices
         self.lipid_particles = self.topol[~np.isin(self.topol["resName"].values, list(particle_naming.ion_names)+list(particle_naming.water_names))].index
