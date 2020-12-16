@@ -82,6 +82,21 @@ class Membrane:
         # neighbors are selected for the normal estimation, by dragging the vectors towards the box COM.
         self.normals = np.asarray([pcu.estimate_normals(frame, k=20) for frame in self.hg_centroids])
 
+        # The normal detection from the point cloud doesn't correctly estimate the Z-direction. The leaflets are
+        # assigned using the lipid vectors rather than the normal vectors. Here, the lipid vectors can also be
+        # used to correct the polarity of the normals.
+
+        # Correct "positive" normals - these are the normals which point up from the upper leaflet towards
+        # +ve Z-direction.
+        # Where the lipid vectors and normals are negative (i.e., pointing down-Z) make the normals positive (i.e., pointing up-Z)
+        # Likewise, correct "negative" normals - those pointing down from the lower leaflet towards -ve Z
+        # Where the lipid vectors and normals are positive (i.e., pointing up-Z) make the normals negative (i.e., pointing down-Z)
+        pos_inversion = (self.vectors[:, :, 2] < 0) & (self.normals[:, :, 2] < 0)
+        neg_inversion = (self.vectors[:, :, 2] > 0) & (self.normals[:, :, 2] > 0)
+
+        inversion_slice = 1 + (np.logical_or(pos_inversion, neg_inversion) * -2)
+        self.normals[:, :, 2] = self.normals[:, :, 2] * inversion_slice
+
         # Detect leaflets using vector alignment
         self.detect_leaflets()
 
