@@ -45,8 +45,10 @@ class OrderParam(Metric):
         # Store results
         for catalogue_name, orderp in self.orderparams.items():
             self.add_results(lipid=catalogue_name, value=orderp, leaflet="Both")
-
-        # TODO - order parameter calculation seperately for upper and lower leaflets
+            for leaflet_name in self.membrane.leaflets[0].keys():
+                self.add_results(lipid=catalogue_name,
+                                 value=calculate_orderparam(self.get_leaflet_average_angle(catalogue_name, leaflet_name)),
+                                 leaflet=leaflet_name)
 
     def get_ensemble_average_angle(self, catalogue_name):
         """
@@ -58,6 +60,34 @@ class OrderParam(Metric):
         for particle_pair in self.bonded_catalogue[catalogue_name]:
             angles.append(np.asarray(self.calculate_angles_to_bilayer_normal(particle_pair)))
         return np.mean(np.asarray(angles))
+
+    def get_leaflet_average_angle(self, catalogue_name, leaflet_name):
+        """
+        Returns the ensemble-averaged angle between instances of the named bonded pair that are located
+        in the indicated leaflet.
+        :param leaflet_name: str, Label of the leaflet to analyse.
+        :param catalogue_name:
+        :return:
+        """
+        angles = []
+
+        for particle_pair in self.bonded_catalogue[catalogue_name]:
+            # Create a selection mask for frames in which the particles belong to a lipid residue that is located in the chosen leaflet
+            # Have to do this separately for each particle pair, since each particle's leaflet presence changes independantly between frames.
+            chosen_frames = np.asarray([True if self.membrane.lipid_residues_by_particle[particle_pair[0]] in self.membrane.leaflets[frame][leaflet_name] else False for frame in range(0,len(self.membrane.sim))])
+            if np.sum(chosen_frames) == 0: # All false; no frame contains these particles in the desired leaflet:
+                continue
+            particle_i = particle_pair[0]
+            particle_j = particle_pair[1]
+            vectors = self.membrane.sim.xyz[chosen_frames, particle_j, :] - self.membrane.sim.xyz[chosen_frames, particle_i, :]
+            normals = self.membrane.normals[chosen_frames, self.membrane.lipid_residues_by_particle[particle_i], :]
+            particle_pair_angles = np.asarray([angle_between(i, j) for i, j in zip(vectors, normals)])
+            angles.append(np.mean(particle_pair_angles))
+
+        try:
+            return np.mean(np.asarray(angles))
+        except RuntimeWarning:
+            return np.nan
 
     def calculate_angles_to_bilayer_normal(self, particle_pair):
         """
