@@ -13,6 +13,8 @@ Memly is a **mem**brane ana**ly**sis tool for molecular dynamics simulations of 
 
 Current analysis metrics:
  - Surface area per lipid
+ - Area compressibility modulus
+ - Second-rank nematic order parameters
 
 
 ### Copyright
