@@ -21,6 +21,12 @@ def test_orderparam():
     x = memly.Analysis(traj, top, load=True)
 
     metric = orderparam.OrderParam(membrane=x.membrane)
+
+    np.testing.assert_equal(orderparam.calculate_orderparam(0), 1.0,
+                            "Order parameter calculation is broken (0 deg) !")
+    np.testing.assert_equal(orderparam.calculate_orderparam(90), -0.5,
+                            "Order parameter calculation is broken (90 deg)")
+
     return metric, metric.results
 
 #

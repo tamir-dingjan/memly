@@ -100,6 +100,21 @@ class Membrane:
         # Detect leaflets using vector alignment
         self.detect_leaflets()
 
+        # Store lookup for residue leaflet occupancy
+        self.leaflet_occupancy_by_resid = defaultdict(list)
+        # Shape: X[resid] = [upper upper lower upper ... ]
+        for frame_leaflets in self.leaflets:
+            for resid in self.detected_lipids:
+                if resid in set(frame_leaflets["upper"]):
+                    self.leaflet_occupancy_by_resid[resid].append("upper")
+                elif resid in set(frame_leaflets["lower"]):
+                    self.leaflet_occupancy_by_resid[resid].append("lower")
+                elif resid in set(frame_leaflets["aggregate"]):
+                    self.leaflet_occupancy_by_resid[resid].append("aggregate")
+                else:
+                    self.leaflet_occupancy_by_resid[resid].append("none")
+
+
     def detect_leaflets(self):
         """
         Detect the raw leaflets, built from neighbor connectedness (criteria: head group distance and

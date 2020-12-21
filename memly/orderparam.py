@@ -74,7 +74,8 @@ class OrderParam(Metric):
         for particle_pair in self.bonded_catalogue[catalogue_name]:
             # Create a selection mask for frames in which the particles belong to a lipid residue that is located in the chosen leaflet
             # Have to do this separately for each particle pair, since each particle's leaflet presence changes independantly between frames.
-            chosen_frames = np.asarray([True if self.membrane.lipid_residues_by_particle[particle_pair[0]] in self.membrane.leaflets[frame][leaflet_name] else False for frame in range(0,len(self.membrane.sim))])
+            #chosen_frames = np.asarray([True if self.membrane.lipid_residues_by_particle[particle_pair[0]] in self.membrane.leaflets[frame][leaflet_name] else False for frame in range(0,len(self.membrane.sim))])
+            chosen_frames = np.asarray(self.membrane.leaflet_occupancy_by_resid[self.membrane.lipid_residues_by_particle[particle_pair[0]]]) == leaflet_name
             if np.sum(chosen_frames) == 0: # All false; no frame contains these particles in the desired leaflet:
                 continue
             particle_i = particle_pair[0]
