@@ -6,3 +6,4 @@ point_cloud_utils
 networkx
 shapely
 geovoronoi
+numba

@@ -123,7 +123,7 @@ class Membrane:
         """
 
         for frame_index, frame in enumerate(self.sim):
-            logging.debug("Frame: %s" % frame_index)
+            logging.debug("Leaflet detection frame: %s" % frame_index)
 
             # Instantiate the network graph with all lipids
             g = nx.Graph()
