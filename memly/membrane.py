@@ -325,6 +325,7 @@ def unit_vector(vector):
 
 def angle_between(v1, v2):
     """Returns the angle in radians between vectors v1 and v2."""
+    # TODO: Add an accelerated implementation using Numba, as in thickness.py
     v1_u = unit_vector(v1)
     v2_u = unit_vector(v2)
     return np.degrees(np.arccos(np.clip(np.dot(v1_u, v2_u), -1.0, 1.0)))

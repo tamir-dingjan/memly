@@ -3,7 +3,6 @@
 
 import os
 import numpy as np
-import pytest
 
 import memly
 from memly import thickness
@@ -18,5 +17,6 @@ def test_thickness():
 
     metric = thickness.Thickness(membrane=x.membrane)
     return metric
+
 
 metric = test_thickness()

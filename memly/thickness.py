@@ -4,12 +4,10 @@ A metric to measure thickness of the bilayer.
 """
 import math
 import numpy as np
-from scipy.spatial import distance
 import logging
 import numba as nb
 
 from memly.metrics import Metric
-from memly.membrane import unit_vector, angle_between
 
 
 def euclidean_distance(v1, v2):
@@ -54,27 +52,16 @@ class Thickness(Metric):
         7. Find the Euclidean distance between the two average positions.
 
         Repeat this process for each membrane normal to find the average membrane thickness.
-
-
-
-
-        :return:
         """
 
         for frame_i in range(0, len(self.membrane.sim)):
             logging.debug("Thickness calculation frame: %s" % frame_i)
             frame_thickness = []
-
             for resid, centroid in enumerate(self.membrane.hg_centroids[frame_i]):
                 logging.debug("Thickness - residue: %s" % resid)
-
-                # thickness = self.thickness_at_lipid(frame_i, resid, centroid)
-
                 thickness = self.thickness_at_lipid_faster(frame_i, resid)
-
                 if not np.isnan(thickness):
                     frame_thickness.append(thickness)
-
             self.membrane_heights.append(frame_thickness)
 
     def thickness_at_lipid_faster(self, frame_i, resid):
@@ -112,8 +99,6 @@ class Thickness(Metric):
         # Get vectors from nbors to source
         dist_vectors = np.subtract(np.asarray(source_expanded), nbor_centroids)
 
-        # vector_alignment = self.select_aligned_normals(source, dist_vectors)
-
         # Compare the normal vector for the selected lipid to the distance vectors of the opposite leaflet nbors
         reference_expanded = np.tile(self.membrane.normals[frame_i, resid, :], (len(dist_vectors), 1))
         vector_alignment = vector_angle_faster(reference_expanded, dist_vectors) < self.threshold_normal_align
@@ -124,66 +109,6 @@ class Thickness(Metric):
         selected_nbors = nbor_centroids[vector_alignment]
         avg_nbors = np.mean(selected_nbors, axis=0)
         lipid_thickness = euclidean_distance(source, avg_nbors)
-        return lipid_thickness
-
-    def thickness_at_lipid(self, frame_i, resid, centroid):
-        """
-        Calculate the thickness of the lipid bilayer at a specific lipid, in a specific frame.
-        If the supplied lipid is in an aggregate in this frame, or if there are no aligned normals, returns
-        np.nan.
-
-        :param frame_i: int, Frame index.
-        :param resid: int, Residue index.
-        :param centroid: numpy.ndarray, A NumPy array of shape (1, 3) containing coordinates from which to search for neighbors.
-        :return: float, The thickness of the bilayer, in nm.
-        """
-
-        home_leaflet = self.membrane.leaflet_occupancy_by_resid[resid][frame_i]
-
-        # We don't want to consider lipids that are in aggregate leaflets, since these are not part of
-        # the bilayer or are partway through completing a flip-flop. Skip these
-        if home_leaflet == "aggregate":
-            return np.nan
-
-        # logging.debug("Thickness - Beginning home neighbor search for resid: %s" % resid)
-        nbors_home = self.select_nbors(centroid, frame_i, home_leaflet, self.threshold_home_leaflet)
-
-        avg_home = np.mean(self.membrane.hg_centroids[frame_i, nbors_home, :], axis=0)
-
-        if home_leaflet == "upper":
-            opposite_leaflet = "lower"
-        elif home_leaflet == "lower":
-            opposite_leaflet = "upper"
-
-        # logging.debug("Thickness - Beginning opposite neighbor search for resid: %s" % resid)
-        nbors_opposite = self.select_nbors(avg_home, frame_i, opposite_leaflet, self.threshold_opposite_leaflet)
-
-        # The reference vector is pointing in the opposite direction to the normals of the opposite leaflet.
-        # So, to check vector alignment sensibly, reverse the direction of the reference vector.
-        # E.g., a reference vector from the upper leaflet originally points in +ve Z, so to allow
-        # alignment checks to normal vectors in the lower leaflet, make the reference point in -ve Z.
-        reference_vector = self.membrane.normals[frame_i, resid, :] * -1
-
-        # only check vector alignment for the selected subset of neighbors in the opposite leaflet
-        # logging.debug("Thickness - Selecting aligned normals for resid: %s" % resid)
-        aligned_normals = self.select_aligned_normals(reference_vector,
-                                                      self.membrane.normals[frame_i, nbors_opposite, :])
-
-        # If we can't find any aligned normals, then the reference is probably tilted at a strange angle
-        # We don't need to take a thickness measurement from this lipid
-        if np.sum(aligned_normals) == 0:
-            return np.nan
-
-        # Convert the indices of the aligned normals back to global scope so that they can be used to index
-        # membrane.normals. I.e., the aligned normals should be indices of membrane.normals.
-        aligned_normals_global = np.zeros(len(nbors_opposite), dtype=bool)
-        aligned_normals_global[np.where(nbors_opposite == True)[0][np.where(aligned_normals == True)[0]]] = True
-
-        # Combine filter for aligned normals with the selected neighbors in the opposite leaflet.
-        selected_opposite = nbors_opposite & aligned_normals_global
-        avg_opposite = np.mean(self.membrane.hg_centroids[frame_i, selected_opposite, :], axis=0)
-
-        lipid_thickness = euclidean_distance(avg_home, avg_opposite)
         return lipid_thickness
 
     def select_nbors(self, source, frame, target_leaflet, threshold):
@@ -229,17 +154,6 @@ class Thickness(Metric):
         # Combine the two masks to select head group particles which meet both
         selected_neighbors = nbor_distances & leaflet_filter
         return selected_neighbors
-
-    def select_aligned_normals(self, reference, haystack):
-        """
-        Return the vectors in haystack that are within the given angle_threshold of the reference vector.
-
-        :param reference: numpy.ndarray, Numpy array of shape (3, ) containing the reference vector.
-        :param haystack: numpy.ndarray, Numpy array of shape (length of haystack, 3) containing vectors to compare to reference.
-        :return: Boolean Numpy array of shape (length of haystack, ) with True marking the aligned vectors in the haystack.
-        """
-
-        return np.asarray([angle_between(reference, query) for query in haystack]) < self.threshold_normal_align
 
 
 @nb.njit(fastmath=True, error_model="numpy", parallel=True)
