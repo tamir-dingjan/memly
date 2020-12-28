@@ -16,7 +16,7 @@ def euclidean_distance(v1, v2):
 
 
 class Thickness(Metric):
-    def __init__(self, membrane, title="Thickness", units="angstrom"):
+    def __init__(self, membrane, title="Thickness", units="nm"):
         """
         Measures the thickness of the bilayer.
 
@@ -37,6 +37,8 @@ class Thickness(Metric):
         self.hg_distance = np.zeros_like(self.membrane.hg_centroids[0])
 
         self.calculate_thickness()
+
+        self.add_results(lipid="All", value=self.membrane_heights, leaflet="Both")
 
     def calculate_thickness(self):
         """

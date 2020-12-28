@@ -7,7 +7,7 @@ from .analysis import Analysis
 from .membrane import Membrane
 
 import logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.WARNING)
 
 # Handle versioneer
 from ._version import get_versions
