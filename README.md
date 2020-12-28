@@ -15,6 +15,7 @@ Current analysis metrics:
  - Surface area per lipid
  - Area compressibility modulus
  - Second-rank nematic order parameters
+ - Bilayer thickness
 
 
 ### Copyright
