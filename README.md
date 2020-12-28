@@ -1,6 +1,7 @@
 memly
 ==============================
 [//]: # (Badges)
+[![DOI](https://zenodo.org/badge/271009350.svg)](https://zenodo.org/badge/latestdoi/271009350)
 [![Build Status](https://travis-ci.com/tamir-dingjan/memly.svg?branch=master)](https://travis-ci.com/tamir-dingjan/memly)
 [![codecov](https://codecov.io/gh/tamir-dingjan/memly/branch/master/graph/badge.svg)](https://codecov.io/gh/tamir-dingjan/memly/branch/master)
 [![Documentation Status](https://readthedocs.org/projects/memly/badge/?version=latest)](https://memly.readthedocs.io/en/latest/?badge=latest)
