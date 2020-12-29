@@ -53,6 +53,15 @@ setup(
     #            'Windows'],            # Valid platforms your code works on, adjust to your flavor
     # python_requires=">=3.5",          # Python version restrictions
 
+    # Classifiers to give some meta-information about the project
+    classifiers=[
+        'Development Status :: 2 - Pre-Alpha',
+        'Intended Audience :: Science/Research',
+        'Programming Language :: Python :: 3',
+        'Natural Language :: English'
+    ]
+
+
     # Manual control if final package is compressible or not, set False to prevent the .egg from being made
     # zip_safe=False,
 

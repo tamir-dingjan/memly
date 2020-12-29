@@ -1,9 +1,11 @@
 ### requirements.txt ###
-pandas
-mdtraj
-numpy
-point_cloud_utils
-networkx
-shapely
-geovoronoi
-numba
+pandas~=1.0.3
+mdtraj~=1.9.4
+numpy~=1.18.1
+point_cloud_utils~=0.15.1
+networkx~=2.4
+shapely~=1.7.1
+geovoronoi~=0.2.0
+numba~=0.51.2
+pytest~=5.4.2
+
