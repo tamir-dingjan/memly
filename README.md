@@ -9,15 +9,16 @@ memly
 [![Total alerts](https://img.shields.io/lgtm/alerts/g/tamir-dingjan/memly.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/tamir-dingjan/memly/alerts/)
 [![Language grade: Python](https://img.shields.io/lgtm/grade/python/g/tamir-dingjan/memly.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/tamir-dingjan/memly/context:python)
 
-Memly is a **mem**brane ana**ly**sis tool for molecular dynamics simulations of lipid bilayers. Memly offers the following features:
- - Frame-by-frame leaflet identification can capture lipid flip-flop
- - Easily extensible design makes it simple to add or customize analysis functions
+Memly is a **mem**brane ana**ly**sis tool for molecular dynamics simulations of lipid bilayers. Memly features frame-by-frame
+leaflet identification designed to capture lipid flip-flop. Analysis functions are implemented in an easily extensible way, 
+making it simple to add or customize simulation analysis.
 
-Current analysis metrics:
+The following analysis metrics are currently available in memly:
  - Surface area per lipid
  - Area compressibility modulus
  - Second-rank nematic order parameters
  - Bilayer thickness
+ - Domain detection
 
 
 ### Copyright

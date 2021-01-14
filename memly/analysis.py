@@ -12,6 +12,7 @@ from .countlipids import CountLipids
 from .sa_analyses import SurfaceArea
 from .orderparam import OrderParam
 from .thickness import Thickness
+from .domains import Domains
 
 
 class Analysis:
@@ -50,6 +51,7 @@ class Analysis:
         self.results.append(SurfaceArea(membrane=self.membrane).results)
         self.results.append(OrderParam(membrane=self.membrane).results)
         self.results.append(Thickness(membrane=self.membrane).results)
+        self.results.append(Domains(membrane=self.membrane).results)
 
         # Collect all the results into one dataframe
         self.results = pd.concat(self.results)
