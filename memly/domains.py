@@ -121,7 +121,11 @@ class Domains(Metric):
 
         # Log the results
         for leaflet in ["upper", "lower"]:
-            self.add_results(lipid="All", value=self.domain_positions[leaflet], leaflet=leaflet)
+            #self.add_results(lipid="All", value=self.domain_positions[leaflet], leaflet=leaflet)
+            self.add_results(title="Domain composition", lipid="All", value=self.domain_compositions[leaflet], leaflet=leaflet)
+            self.add_results(title="Domain lifetime", lipid="All", value=self.domain_core_lifetimes_by_lipid_type[leaflet], leaflet=leaflet)
+            self.add_results(title="Domain sizes", lipid="All", value=self.domain_sizes[leaflet], leaflet=leaflet)
+
 
     def get_projection(self, leaflet="upper"):
         """
