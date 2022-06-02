@@ -86,7 +86,8 @@ class Domains(Metric):
         self.projection = {}
         self.delaunay_tri = {}
         self.neighbors = {}
-
+        self.threshold = None
+        self.count_domains = defaultdict(list)
         self.domain_positions = {}
         self.domain_compositions = {}
         self.domain_sizes = {}
@@ -94,18 +95,22 @@ class Domains(Metric):
         self.domain_occupancy = {}
         self.domain_core_lifetimes = {}
         self.domain_core_lifetimes_by_lipid_type = {}
+        self.domain_overlap = defaultdict(list)
+        self.overlapping_upper_types = []
+        self.overlapping_lower_types = []
+        self.overlapping_domain_core_types = defaultdict(set)
+        self.domain_overlap_map = None
+        self.count_overlapping_domains = 0
 
         for leaflet in ["upper", "lower"]:
             self.get_projection(leaflet)
             self.triangulate(leaflet)
             self.get_tri_neighbors(leaflet)
-
-        # TODO - make label domains part of the leaflet loop block like the other functions
-        self.label_domains()
-
-        for leaflet in ["upper", "lower"]:
+            self.label_domains(leaflet)
             self.get_domain_occupancy(leaflet)
             self.calc_lifetimes(leaflet)
+
+        self.calc_interleaflet_coupling()
 
         # TODO - Want to measure acyl chain order parameters within domains
         # TODO - Have a whole range of metrics that I want to measure in domains:
@@ -120,12 +125,17 @@ class Domains(Metric):
 
 
         # Log the results
+        print("Logging domain results...")
         for leaflet in ["upper", "lower"]:
             #self.add_results(lipid="All", value=self.domain_positions[leaflet], leaflet=leaflet)
             self.add_results(title="Domain composition", lipid="All", value=self.domain_compositions[leaflet], leaflet=leaflet)
             self.add_results(title="Domain lifetime", lipid="All", value=self.domain_core_lifetimes_by_lipid_type[leaflet], leaflet=leaflet)
             self.add_results(title="Domain sizes", lipid="All", value=self.domain_sizes[leaflet], leaflet=leaflet)
-
+            self.add_results(title="Domain counts", lipid="All", value=self.count_domains[leaflet], leaflet=leaflet)
+        self.add_results(title="Domain overlapping types", lipid="All", value=self.overlapping_upper_types, leaflet="upper")
+        self.add_results(title="Domain overlapping types", lipid="All", value=self.overlapping_lower_types, leaflet="lower")
+        self.add_results(title="Domain overlap map", lipid="All", value=self.domain_overlap_map, leaflet="both")
+        self.add_results(title="Domain overlap count", lipid="All", value=self.count_overlapping_domains, leaflet="both")
 
     def get_projection(self, leaflet="upper"):
         """
@@ -213,7 +223,7 @@ class Domains(Metric):
 
         return domain_score
 
-    def label_domains(self):
+    def label_domains(self, leaflet="upper"):
         """
         The domains, defined by a lipid with its neighbors, can contain a different makeup of lipids relative to the
         whole leaflet composition. In particular, domains enriched in cholesterol and saturated phospholipids can be
@@ -230,83 +240,86 @@ class Domains(Metric):
 
         # TODO: Make this faster using matrices - could calculate the domain scores all in one go.
 
-        for leaflet in ["upper", "lower"]:
-            self.domain_positions[leaflet] = {}
-            self.domain_compositions[leaflet] = {}
-            self.domain_sizes[leaflet] = {}
-            self.domain_cores[leaflet] = {}
+        self.domain_positions[leaflet] = {}
+        self.domain_compositions[leaflet] = {}
+        self.domain_sizes[leaflet] = {}
+        self.domain_cores[leaflet] = {}
 
-            for frame_i, frame_nbors in enumerate(self.neighbors[leaflet]):
-                self.domain_positions[leaflet][frame_i] = []
-                domain_positions_raw = []
+        for frame_i, frame_nbors in enumerate(self.neighbors[leaflet]):
+            print("Evaluating domains in frame: ", frame_i)
+            self.domain_positions[leaflet][frame_i] = []
+            domain_positions_raw = []
 
-                self.domain_compositions[leaflet][frame_i] = []
-                domain_compositions_raw = []
+            self.domain_compositions[leaflet][frame_i] = []
+            domain_compositions_raw = []
 
-                domain_graph = networkx.Graph()
+            domain_graph = networkx.Graph()
 
-                domain_cores = []
+            domain_cores = []
 
-                # Get the leaflet composition - only need to do this once per frame
-                leaflet_score = self.get_domain_score(self.membrane.leaflets[frame_i][leaflet])
+            # Get the leaflet composition - only need to do this once per frame
+            leaflet_score = self.get_domain_score(self.membrane.leaflets[frame_i][leaflet])
 
-                for core, nbors in frame_nbors.items():
-                    # The domain cores and nbors are lipid residue numbers.
-                    # Get the composition of this domain from the lipid residue numbers
-                    domain_composition = list(nbors)
-                    domain_composition.append(int(core))
-                    domain_score = self.get_domain_score(domain_composition)
+            for core, nbors in frame_nbors.items():
+                # The domain cores and nbors are lipid residue numbers.
+                # Get the composition of this domain from the lipid residue numbers
+                domain_composition = list(nbors)
+                domain_composition.append(int(core))
+                domain_score = self.get_domain_score(domain_composition)
 
-                    # Compare domain composition to leaflet composition
-                    # The domain score ranges from 0 to 1. How to set a threshold for saving a domain?
-                    # If the domain score is greater than the leaflet average, that selects for too many lipids.
-                    # This threshold represents the % of the domain lipids that must be in the desired types.
+                # Compare domain composition to leaflet composition
+                # The domain score ranges from 0 to 1. How to set a threshold for saving a domain?
+                # If the domain score is greater than the leaflet average, that selects for too many lipids.
+                # This threshold represents the % of the domain lipids that must be in the desired types.
 
-                    self.threshold = leaflet_score
-                    # threshold = 0.8
+                self.threshold = leaflet_score
+                # threshold = 0.8
 
-                    if (domain_score > self.threshold):
-                        # Apply label / store domain position
-                        # The order of head group centroids corresponds with the residue indices in membrane.detected_lipids
-                        # So, can find the positions of the lipids in the domain by first finding which index
-                        # each lipid is in membrane.detected_lipids, and selecting head group centroids with those indices.
-                        # Note that the positions of residue indices in membrane.detected_lipids will only match the
-                        # residue index number if the topology begins with lipids, and is uninterrupted.
+                if domain_score > self.threshold:
+                    # Apply label / store domain position
+                    # The order of head group centroids corresponds with the residue indices in membrane.detected_lipids
+                    # So, can find the positions of the lipids in the domain by first finding which index
+                    # each lipid is in membrane.detected_lipids, and selecting head group centroids with those indices.
+                    # Note that the positions of residue indices in membrane.detected_lipids will only match the
+                    # residue index number if the topology begins with lipids, and is uninterrupted.
 
-                        # Save the position of the domain core only
-                        domain_positions_raw.append(self.membrane.hg_centroids[frame_i, self.membrane.detected_lipids.index(core), :2])
+                    # Save the position of the domain core only
+                    domain_positions_raw.append(self.membrane.hg_centroids[frame_i, self.membrane.detected_lipids.index(core), :2])
 
-                        # Save the domain composition - which lipid residues are in each domain
-                        domain_compositions_raw.append(domain_composition)
+                    # Save the domain composition - which lipid residues are in each domain
+                    domain_compositions_raw.append(domain_composition)
 
-                        # Save the domain graph
-                        domain_graph.add_nodes_from(domain_composition)
-                        for x in domain_composition[1:]:
-                            domain_graph.add_edge(domain_composition[0], x)
+                    # Save the domain graph
+                    domain_graph.add_nodes_from(domain_composition)
+                    for x in domain_composition[1:]:
+                        domain_graph.add_edge(domain_composition[0], x)
 
-                        # Save the domain occupancy - record which lipids are cores
-                        domain_cores.append(core)
+                    # Save the domain occupancy - record which lipids are cores
+                    domain_cores.append(core)
 
-                        # Saving the entire domain composition results in overlap, since each lipid can be a neighbor to multiple others
-                        #domain_positions_raw.append(self.membrane.hg_centroids[frame_i, [self.membrane.detected_lipids.index(x) for x in domain_composition], :2])
+                    # Saving the entire domain composition results in overlap, since each lipid can be a neighbor to multiple others
+                    #domain_positions_raw.append(self.membrane.hg_centroids[frame_i, [self.membrane.detected_lipids.index(x) for x in domain_composition], :2])
 
-                # Concat the domain positions
-                self.domain_positions[leaflet][frame_i] = np.stack(domain_positions_raw)
+            # Concat the domain positions
+            self.domain_positions[leaflet][frame_i] = np.stack(domain_positions_raw)
 
-                # Save the domain composition - names of the lipid residues
-                # We don't want to count lipids twice, so get the unique lipid residues
-                domain_compositions_flat = []
-                for x in domain_compositions_raw:
-                    for y in x:
-                        domain_compositions_flat.append(y)
-                domain_compositions_flat_unique = list(set(domain_compositions_flat))
-                self.domain_compositions[leaflet][frame_i] = Counter([self.membrane.sim.topology.residue(x).name for x in domain_compositions_flat_unique])
+            # Save the domain composition - names of the lipid residues
+            # We don't want to count lipids twice, so get the unique lipid residues
+            domain_compositions_flat = []
+            for x in domain_compositions_raw:
+                for y in x:
+                    domain_compositions_flat.append(y)
+            domain_compositions_flat_unique = list(set(domain_compositions_flat))
+            self.domain_compositions[leaflet][frame_i] = Counter([self.membrane.sim.topology.residue(x).name for x in domain_compositions_flat_unique])
 
-                # Find domain sizes from the graph
-                self.domain_sizes[leaflet][frame_i] = [len(x) for x in networkx.algorithms.components.connected_components(domain_graph)]
+            # Find domain sizes from the graph
+            self.domain_sizes[leaflet][frame_i] = [len(x) for x in networkx.algorithms.components.connected_components(domain_graph)]
 
-                # Record the domain cores
-                self.domain_cores[leaflet][frame_i] = domain_cores
+            # Record the domain cores
+            self.domain_cores[leaflet][frame_i] = domain_cores
+
+            # Record the number of domains
+            self.count_domains[leaflet].append(len(domain_cores))
 
     def get_domain_occupancy(self, leaflet):
         """
@@ -358,3 +371,58 @@ class Domains(Metric):
             # Merge lifetimes by lipid type
             self.domain_core_lifetimes_by_lipid_type[leaflet][self.membrane.sim.topology.residue(self.membrane.detected_lipids[index]).name].append(lifetime)
 
+    def calc_interleaflet_coupling(self):
+        """
+        Calculate an overlap metric for each frame. Because domains are for the most part contiguous across entire leaflets
+        it doesn't make sense to measure domain overlap from the entire domain, since a lot of the leaflet area
+        will then be considered as overlap.
+        What we actually care about is a more precise kind of overlap, where two domains form or more in register.
+        So to measure this, let's consider only overlap of domain cores.
+
+        Consider overlap as when domain cores in opposing leaflets share the same XY coordinate with a certain tolerance.
+
+        :return:
+        """
+
+        for frame in range(0, len(self.membrane.sim)):
+            # Compare the XY coordinates of domain cores
+            for upper_domain in self.domain_cores['upper'][frame]:
+                for lower_domain in self.domain_cores['lower'][frame]:
+                    if self.check_overlapping_domain_cores(frame, upper_domain, lower_domain):
+                        # Save the overlap time and composition of overlapping domains
+                        self.count_overlapping_domains = self.count_overlapping_domains + 1
+                        self.overlapping_domain_core_types['upper'].add(self.membrane.sim.topology.residue(upper_domain).name)
+                        self.overlapping_domain_core_types['lower'].add(self.membrane.sim.topology.residue(lower_domain).name)
+                        self.domain_overlap[frame].append([self.membrane.sim.topology.residue(x).name for x in [upper_domain, lower_domain]])
+
+        # Use sorted lists of the overlapping_domain_core_types records to allow consistent indexing
+        self.overlapping_upper_types = sorted(self.overlapping_domain_core_types['upper'])
+        self.overlapping_lower_types = sorted(self.overlapping_domain_core_types['lower'])
+
+        self.domain_overlap_map = np.zeros((len(self.overlapping_upper_types), len(self.overlapping_lower_types)))
+
+        # For each overlapping pair of domains, increment the map at the intersection of residue types
+        for frame, overlapping_domains in self.domain_overlap.items():
+            for pair in overlapping_domains:
+                self.domain_overlap_map[self.overlapping_upper_types.index(pair[0]), self.overlapping_lower_types.index(pair[1])] += 1
+
+    def check_overlapping_domain_cores(self, frame, upper_core, lower_core):
+        """
+        Checks for XY overlap between the two provided domain cores.
+
+        :param lower_core:
+        :param upper_core:
+        :param frame:
+        :return:
+        """
+
+        # Fetch the XY coordinates of the two domain cores
+        i = self.membrane.hg_centroids[frame, upper_core, :2]
+        j = self.membrane.hg_centroids[frame, lower_core, :2]
+
+        overlap_threshold = 0.5
+
+        if np.sum(np.abs(i-j)) < overlap_threshold:
+            return True
+        else:
+            return False
