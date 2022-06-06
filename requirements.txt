@@ -2,7 +2,7 @@
 pandas
 mdtraj
 numpy
-point_cloud_utils==0.15.1
+point_cloud_utils==0.23.0
 networkx
 shapely
 geovoronoi
