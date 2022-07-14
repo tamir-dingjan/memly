@@ -111,3 +111,5 @@ ENV/
 /memly/tests/data/2_old.xtc
 /memly/tests/data/normals.pdb
 /memly/tests/data/normals_converted.pdb
+/memly/tests/manual_test_08_domains.py
+

@@ -11,6 +11,7 @@ from string import ascii_uppercase
 from numbers import Number
 
 import numpy as np
+import vg
 import point_cloud_utils as pcu
 import networkx as nx
 
@@ -186,10 +187,7 @@ class Membrane:
         nbors_distance = np.flatnonzero(np.all(np.abs(self.hg_centroids[frame] - self.hg_centroids[frame][query_lipid]) < threshold, axis=1))
 
         # Then check the normal vector alignment
-        nbors_tilt = np.flatnonzero(np.asarray([angle_between(self.normals[frame][i], self.normals[frame][query_lipid]) for i in nbors_distance]) < tilt)
-
-        # Final neighbors meet both requirements
-        nbors = nbors_distance[nbors_tilt]
+        nbors = nbors_distance[np.flatnonzero(np.asarray(vg.angle(self.normals[frame][nbors_distance], self.normals[frame][query_lipid])) < tilt)]
 
         return nbors
 
