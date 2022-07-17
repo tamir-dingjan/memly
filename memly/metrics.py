@@ -35,7 +35,7 @@ class Metric:
         self.title = title
         self.units = units
         self.columns = ["metric_title", "lipid", "value", "units", "leaflet"]
-        self.results = pd.DataFrame(data=None, index=None, columns=self.columns)
+        self.results = pd.DataFrame(data=None, index=None, columns=self.columns, dtype=object)
 
     def add_results(self, title=None, lipid="All", value=None, units=None, leaflet="Both"):
         """

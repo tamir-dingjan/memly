@@ -14,9 +14,9 @@ THIS_DIR = os.path.dirname(os.path.abspath(__file__))
 points = os.path.join(THIS_DIR, "data/point_cloud.obj")
 
 # v is a nv by 3 NumPy array of vertices
-v, f, n = pcu.read_obj(points)
+v = pcu.load_mesh_v(points)
 
 # Estimate a normal at each point (row of v) using its 5 nearest neighbors
-n = pcu.estimate_normals(v, k=5)
+n = pcu.estimate_point_cloud_normals_knn(v, 5)
 
-np.testing.assert_allclose(n[0], np.asarray([0.96283305, 0.11186423, 0.24584327]))
+np.testing.assert_allclose(n[1][5], np.asarray([0, 0, 1]))

@@ -99,7 +99,7 @@ class Membrane:
         self.normals[:, :, 2] = self.normals[:, :, 2] * inversion_slice
 
         # Detect leaflets using vector alignment
-        self.detect_leaflets()
+        self.detect_leaflets_simple()
 
         # Store lookup for residue leaflet occupancy
         self.leaflet_occupancy_by_resid = defaultdict(list)
@@ -115,6 +115,44 @@ class Membrane:
                 else:
                     self.leaflet_occupancy_by_resid[resid].append("none")
 
+    def detect_leaflets_simple(self):
+
+        for frame in self.normals:
+            categorised = defaultdict(list)
+            # Lipids with normals pointing in +ve Z are the upper leaflet
+            categorised["upper"] += list(np.where(frame[:,2] > 0)[0])
+
+            # Lipids with normals pointing in -ve Z are the lower leaflet
+            categorised["lower"] += list(np.where(frame[:, 2] < 0)[0])
+
+            self.leaflets.append(categorised)
+
+    def detect_leaflets_pcu_viewangle(self):
+        """
+        Assign leaflets based on the alignment of the lipid normals to the Z-axis.
+        :return:
+        """
+
+        #TODO: Incomplete
+
+        tilt_threshold = 30
+
+        categorised = defaultdict(list)
+
+        # for each frame
+        for frame in self.normals:
+
+            # Get the normals, testing for alignment to positive Z-axis
+            p, n = pcu.estimate_point_cloud_normals_knn(points=frame,
+                                                        num_neighbors=20,
+                                                        view_directions=np.asarray([[0., 0., 1.]]*len(frame)),
+                                                        drop_angle_threshold=np.deg2rad(tilt_threshold))
+
+            # The points that passed the filter are the indices of the points located in the upper leaflet
+            # Do these need to be converted back to lipid IDs?
+            categorised["upper"] += p
+
+
 
     def detect_leaflets(self):
         """
@@ -122,6 +160,10 @@ class Membrane:
         normal vector alignment).
         :return:
         """
+
+        #TODO: Can we vectorise this?
+        # Possibly using the pcu.estimate_point_cloud_normals_knn() with view directions and a drop angle threshold
+        # Use the viewing angle deviations on the self.vectors to quickly select a whole leaflet's worth
 
         for frame_index, frame in enumerate(self.sim):
             logging.debug("Leaflet detection frame: %s" % frame_index)
