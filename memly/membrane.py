@@ -51,7 +51,6 @@ class Membrane:
         self.detected_lipids = [x.index for x in self.sim.topology.residues if (particle_naming.ion_names.isdisjoint({x.name}) and particle_naming.water_names.isdisjoint({x.name}))]
         logging.debug("Number of lipids detected: %s" % len(self.detected_lipids))
         self.residue_names = sorted(set([self.sim.topology.residue(index).name for index in self.detected_lipids]))
-
         # Collect all lipid particle indices
         self.lipid_particles = self.topol[~np.isin(self.topol["resName"].values, list(particle_naming.ion_names)+list(particle_naming.water_names))].index
 
@@ -71,7 +70,6 @@ class Membrane:
         # NOTE: This requires the original trajectory file to be PBC-corrected, so that all molecules are whole in every frame.
         # Use numpy stack to allow indexing using different numbers of head group particles in each lipid
         self.hg_centroids = np.stack([get_centroid_of_particles(self.sim, self.hg_particles_by_res[resid]) for resid in self.detected_lipids], axis=1)
-
         # Use numpy stack to allow indexing using different numbers of particles found in each lipid
         self.com_centroids = np.stack([get_centroid_of_particles(self.sim, self.lipid_particles_by_res[resid]) for resid in self.detected_lipids], axis=1)
 
@@ -80,7 +78,7 @@ class Membrane:
         # Precalculate local neighborhood lipid vector normals
         # This is not done in a PBC-aware fashion. It therefore tends to mess up in the corners if too many nearest
         # neighbors are selected for the normal estimation, by dragging the vectors towards the box COM.
-        self.normals = np.asarray([pcu.estimate_normals(frame, k=20) for frame in self.hg_centroids])
+        self.normals = np.asarray([pcu.estimate_point_cloud_normals_knn(frame, 20)[1] for frame in self.hg_centroids])
 
         # The normal detection from the point cloud doesn't correctly estimate the Z-direction. The leaflets are
         # assigned using the lipid vectors rather than the normal vectors. Here, the lipid vectors can also be
