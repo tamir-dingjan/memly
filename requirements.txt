@@ -2,7 +2,7 @@
 pandas==1.0.3
 mdtraj
 numpy==1.23.1
-point_cloud_utils==0.23.0
+point_cloud_utils==0.24.0
 networkx==2.4
 shapely==1.7.1
 geovoronoi==0.2.0
