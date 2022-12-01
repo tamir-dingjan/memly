@@ -31,3 +31,4 @@ analyser = memly.Analysis(traj, top, load=True)
 
 analyser.run_all_analyses()
 
+print("Finished!")

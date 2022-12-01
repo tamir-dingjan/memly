@@ -5,6 +5,6 @@ numpy
 point_cloud_utils==0.23.0
 networkx
 shapely
-geovoronoi
+geovoronoi==0.2.0
 numba
 vg
