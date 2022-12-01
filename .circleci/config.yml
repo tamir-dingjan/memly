@@ -18,7 +18,7 @@ commands:
           name: Install apt packages
           command: |
             sudo apt-get update
-            sudo apt-get install gfortran flang nvfortran pgfortran ifort ifx g95
+            sudo apt-get install gfortran 
 
 # Define a job to be invoked later in a workflow.
 # See: https://circleci.com/docs/2.0/configuration-reference/#jobs
