@@ -57,15 +57,16 @@ jobs:
       - run:
           name: Run tests
           # Use scalene (installed above) to run tests and get back performance information
-          command: scalene ./memly/tests/test_00_single_frame.py |
-          scalene ./memly/tests/test_01_trajectory.py |
-          scalene ./memly/tests/test_02_trajectory.py |
-          scalene ./memly/tests/test_03_point_cloud_normals.py |
-          scalene ./memly/tests/test_04_sa_analyses.py |
-          scalene ./memly/tests/test_05_countlipids.py |
-          scalene ./memly/tests/test_06_order_parameter.py |
-          scalene ./memly/tests/test_07_thickness.py | 
-          scalene ./memly/tests/test_08_domains.py
+          command: |
+            scalene ./memly/tests/test_00_single_frame.py 
+            scalene ./memly/tests/test_01_trajectory.py 
+            scalene ./memly/tests/test_02_trajectory.py 
+            scalene ./memly/tests/test_03_point_cloud_normals.py 
+            scalene ./memly/tests/test_04_sa_analyses.py 
+            scalene ./memly/tests/test_05_countlipids.py 
+            scalene ./memly/tests/test_06_order_parameter.py 
+            scalene ./memly/tests/test_07_thickness.py 
+            scalene ./memly/tests/test_08_domains.py
 
 
 # Invoke jobs via workflows
