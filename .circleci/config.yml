@@ -19,6 +19,12 @@ commands:
           command: |
             sudo apt-get update
             sudo apt-get install gfortran cmake
+  pip-upgrade:
+    steps:
+      - run:
+          name: Upgrade pip
+          command: |
+            pip install --upgrade pip
 
 # Define a job to be invoked later in a workflow.
 # See: https://circleci.com/docs/2.0/configuration-reference/#jobs
