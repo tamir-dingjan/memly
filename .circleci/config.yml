@@ -57,7 +57,7 @@ jobs:
       - run:
           name: Run tests
           # Use scalene (installed above) to run tests and get back performance information
-          command: pwd
+          command: ls -l
 
 # Invoke jobs via workflows
 # See: https://circleci.com/docs/2.0/configuration-reference/#workflows
