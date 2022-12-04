@@ -7,7 +7,6 @@ Created on Wed Jun 10 15:46:05 2020
 """
 import os
 import numpy as np
-import pytest
 
 import memly
 from memly import countlipids
