@@ -11,6 +11,7 @@ from string import ascii_uppercase
 from numbers import Number
 
 import numpy as np
+import vg
 import point_cloud_utils as pcu
 import networkx as nx
 
@@ -80,7 +81,7 @@ class Membrane:
         # Precalculate local neighborhood lipid vector normals
         # This is not done in a PBC-aware fashion. It therefore tends to mess up in the corners if too many nearest
         # neighbors are selected for the normal estimation, by dragging the vectors towards the box COM.
-        self.normals = np.asarray([pcu.estimate_normals(frame, k=20) for frame in self.hg_centroids])
+        self.normals = np.asarray([pcu.estimate_point_cloud_normals_knn(frame, 20)[1] for frame in self.hg_centroids])
 
         # The normal detection from the point cloud doesn't correctly estimate the Z-direction. The leaflets are
         # assigned using the lipid vectors rather than the normal vectors. Here, the lipid vectors can also be
@@ -98,7 +99,7 @@ class Membrane:
         self.normals[:, :, 2] = self.normals[:, :, 2] * inversion_slice
 
         # Detect leaflets using vector alignment
-        self.detect_leaflets()
+        self.detect_leaflets_simple()
 
         # Store lookup for residue leaflet occupancy
         self.leaflet_occupancy_by_resid = defaultdict(list)
@@ -114,6 +115,44 @@ class Membrane:
                 else:
                     self.leaflet_occupancy_by_resid[resid].append("none")
 
+    def detect_leaflets_simple(self):
+
+        for frame in self.normals:
+            categorised = defaultdict(list)
+            # Lipids with normals pointing in +ve Z are the upper leaflet
+            categorised["upper"] += list(np.where(frame[:,2] > 0)[0])
+
+            # Lipids with normals pointing in -ve Z are the lower leaflet
+            categorised["lower"] += list(np.where(frame[:, 2] < 0)[0])
+
+            self.leaflets.append(categorised)
+
+    def detect_leaflets_pcu_viewangle(self):
+        """
+        Assign leaflets based on the alignment of the lipid normals to the Z-axis.
+        :return:
+        """
+
+        #TODO: Incomplete
+
+        tilt_threshold = 30
+
+        categorised = defaultdict(list)
+
+        # for each frame
+        for frame in self.normals:
+
+            # Get the normals, testing for alignment to positive Z-axis
+            p, n = pcu.estimate_point_cloud_normals_knn(points=frame,
+                                                        num_neighbors=20,
+                                                        view_directions=np.asarray([[0., 0., 1.]]*len(frame)),
+                                                        drop_angle_threshold=np.deg2rad(tilt_threshold))
+
+            # The points that passed the filter are the indices of the points located in the upper leaflet
+            # Do these need to be converted back to lipid IDs?
+            categorised["upper"] += p
+
+
 
     def detect_leaflets(self):
         """
@@ -121,6 +160,10 @@ class Membrane:
         normal vector alignment).
         :return:
         """
+
+        #TODO: Can we vectorise this?
+        # Possibly using the pcu.estimate_point_cloud_normals_knn() with view directions and a drop angle threshold
+        # Use the viewing angle deviations on the self.vectors to quickly select a whole leaflet's worth
 
         for frame_index, frame in enumerate(self.sim):
             logging.debug("Leaflet detection frame: %s" % frame_index)
@@ -186,10 +229,7 @@ class Membrane:
         nbors_distance = np.flatnonzero(np.all(np.abs(self.hg_centroids[frame] - self.hg_centroids[frame][query_lipid]) < threshold, axis=1))
 
         # Then check the normal vector alignment
-        nbors_tilt = np.flatnonzero(np.asarray([angle_between(self.normals[frame][i], self.normals[frame][query_lipid]) for i in nbors_distance]) < tilt)
-
-        # Final neighbors meet both requirements
-        nbors = nbors_distance[nbors_tilt]
+        nbors = nbors_distance[np.flatnonzero(np.asarray(vg.angle(self.normals[frame][nbors_distance], self.normals[frame][query_lipid])) < tilt)]
 
         return nbors
 

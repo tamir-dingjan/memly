@@ -51,7 +51,7 @@ class Analysis:
         self.results.append(SurfaceArea(membrane=self.membrane).results)
         self.results.append(OrderParam(membrane=self.membrane).results)
         self.results.append(Thickness(membrane=self.membrane).results)
-        self.results.append(Domains(membrane=self.membrane).results)
+        # self.results.append(Domains(membrane=self.membrane).results)
 
         # Collect all the results into one dataframe
         self.results = pd.concat(self.results)

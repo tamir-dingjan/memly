@@ -1,0 +1,78 @@
+# Use the latest 2.1 version of CircleCI pipeline process engine.
+# See: https://circleci.com/docs/2.0/configuration-reference
+version: 2.1
+
+# Orbs are reusable packages of CircleCI configuration that you may share across projects, enabling you to create encapsulated, parameterized commands, jobs, and executors that can be used across multiple projects.
+# See: https://circleci.com/docs/2.0/orb-intro/
+orbs:
+  # The python orb contains a set of prepackaged CircleCI configuration you can use repeatedly in your configuration files
+  # Orb commands and jobs help you with common scripting around a language/tool
+  # so you dont have to copy and paste it everywhere.
+  # See the orb documentation here: https://circleci.com/developer/orbs/orb/circleci/python
+  python: circleci/python@1.5.0
+
+commands:
+  apt-install:
+    steps:
+      - run:
+          name: Install apt packages
+          command: |
+            sudo apt-get update
+            sudo apt-get install gfortran cmake libopenblas-dev
+  pip-upgrade:
+    steps:
+      - run:
+          name: Upgrade pip
+          command: |
+            pip install --upgrade pip
+
+# Define a job to be invoked later in a workflow.
+# See: https://circleci.com/docs/2.0/configuration-reference/#jobs
+jobs:
+  build-and-test: # This is the name of the job, feel free to change it to better match what you're trying to do!
+    # These next lines defines a Docker executors: https://circleci.com/docs/2.0/executor-types/
+    # You can specify an image from Dockerhub or use one of the convenience images from CircleCI's Developer Hub
+    # A list of available CircleCI Docker convenience images are available here: https://circleci.com/developer/images/image/cimg/python
+    # The executor is the environment in which the steps below will be executed - below will use a python 3.10.2 container
+    # Change the version below to your required version of python
+    docker:
+      - image: cimg/python:3.8.3
+    # Checkout the code as the first step. This is a dedicated CircleCI step.
+    # The python orb's install-packages step will install the dependencies from a Pipfile via Pipenv by default.
+    # Here we're making sure we use just use the system-wide pip. By default it uses the project root's requirements.txt.
+    # Then run your tests!
+    # CircleCI will report the results back to your VCS provider.
+    steps:
+      - checkout
+      - apt-install
+      - pip-upgrade
+      - python/install-packages:
+          pkg-manager: pip
+          # app-dir: ~/project/package-directory/  # If you're requirements.txt isn't in the root directory.
+          # pip-dependency-file: test-requirements.txt  # if you have a different name for your requirements file, maybe one that combines your runtime and test requirements.
+      - python/install-packages:
+          args: scalene
+          pkg-manager: pip
+          pypi-cache: false
+      - run:
+          name: Run tests
+          # Use scalene (installed above) to run tests and get back performance information
+          command: |
+            scalene ./memly/tests/test_00_single_frame.py 
+            scalene ./memly/tests/test_01_trajectory.py 
+            scalene ./memly/tests/test_02_trajectory.py 
+            scalene ./memly/tests/test_03_point_cloud_normals.py 
+            scalene ./memly/tests/test_04_sa_analyses.py 
+            scalene ./memly/tests/test_05_countlipids.py 
+            scalene ./memly/tests/test_06_order_parameter.py 
+            scalene ./memly/tests/test_07_thickness.py 
+            scalene ./memly/tests/test_08_domains.py
+
+
+# Invoke jobs via workflows
+# See: https://circleci.com/docs/2.0/configuration-reference/#workflows
+workflows:
+  sample: # This is the name of the workflow, feel free to change it to better match your workflow.
+    # Inside the workflow, you define the jobs you want to run.
+    jobs:
+      - build-and-test

@@ -154,7 +154,10 @@ class SurfaceArea(Metric):
         # The area scale here is in nm^2, so apply the 10^-18 conversion to reach m^2, and square the units for variance
 
         # Doktorova uses the area of the whole simulation box
-        self.acm = (self.boltzmann * self.temp * area * 1E-18) / (variance * 1E-36)
+        if variance != 0:
+            self.acm = (self.boltzmann * self.temp * area * 1E-18) / (variance * 1E-36)
+        else:
+            self.acm = 0
 
         # Feller and Pastor use the area per lipid - need to do separately per leaflet
         for leaflet in ["upper", "lower"]:
